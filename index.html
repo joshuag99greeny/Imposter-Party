@@ -86,6 +86,14 @@
   .timer-chip.hot{background:#ffe9ee;border-color:#ffb9c8;color:#d0244b;animation:pulse .8s infinite}
   @keyframes pulse{50%{transform:scale(1.04)}}
 
+  .clockbox{background:linear-gradient(135deg,#ff5b7a,#ff9d5c);color:#fff;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px;box-shadow:0 10px 24px rgba(255,91,122,.3)}
+  .clockbox .who{font-weight:900;font-size:15px;opacity:.95}
+  .clockbox .t{font-weight:1000;font-size:clamp(40px,14vw,64px);line-height:1;font-variant-numeric:tabular-nums}
+  .clockbox.hot{animation:pulse .5s infinite}
+  .clockbox .cancel{margin-top:8px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:10px;padding:6px 12px;font-weight:800;cursor:pointer}
+  .clockstrip{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0 2px}
+  .clockstrip button{appearance:none;border:1px solid #ffb9c8;background:#fff3f5;color:#d0244b;border-radius:999px;padding:6px 12px;font-weight:900;font-size:13px;cursor:pointer}
+  .clockbtn{appearance:none;border:1px solid #e6e6f4;background:#fafaff;border-radius:8px;padding:6px 8px;font-weight:900;font-size:13px;cursor:pointer}
   .revealbox{background:#fff;border:2px solid #ffb9c8;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px}
   .revealbox .w{font-weight:1000;font-size:clamp(26px,8vw,40px);text-transform:uppercase}
   .revealbox .imps{font-weight:900;color:#d0244b;margin-top:4px}
@@ -135,6 +143,11 @@
     <section class="panel">
       <h3>Players <span class="pill" id="lobbyCount">0</span></h3>
       <div class="playerchips" id="lobbyPlayers"></div>
+      <div class="row" style="margin-top:10px">
+        <input class="text" id="subName" maxlength="14" placeholder="Add a player on this phone" style="flex:1;min-width:0">
+        <button class="btn secondary" onclick="addSharedPlayer()">Add</button>
+      </div>
+      <p class="muted">Phone dead? Add them here — you'll share this phone and take turns peeking, but play as separate players.</p>
       <p class="muted" id="lobbyWait">Waiting for the host to start…</p>
     </section>
     <section class="panel" id="hostSettings" style="display:none">
@@ -164,6 +177,20 @@
           <select id="sQRounds"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
         </div>
       </div>
+      <div class="field"><label>Add a player to someone else's phone</label>
+        <div class="row">
+          <input class="text" id="hostSubName" maxlength="14" placeholder="Name" style="flex:1;min-width:0">
+          <select id="hostSubDevice" style="flex:1;min-width:0;border:1px solid #e4e0ff;border-radius:10px;padding:10px;font-size:15px;background:#fff"></select>
+        </div>
+        <button class="btn secondary" onclick="hostAddShared()" style="margin-top:6px">Add shared player</button>
+      </div>
+      <div class="field"><label>Clock times players can call</label>
+        <div class="seg" id="sClock">
+          <button data-v="10" class="on">10s</button><button data-v="20" class="on">20s</button>
+          <button data-v="30" class="on">30s</button><button data-v="60" class="on">1 min</button>
+        </div>
+        <span class="muted">Anyone can put a slow player "on the clock". Turn all off to disable.</span>
+      </div>
       <div class="field"><label>Category</label><select id="sCat"><option value="__random__">🎲 Random</option></select></div>
       <button class="btn primary big" onclick="hostStartRound()">Start Round 1</button>
     </section>
@@ -179,6 +206,14 @@
       </div>
     </section>
 
+    <section class="panel" id="clockPanel" style="display:none">
+      <div class="clockbox" id="clockBox">
+        <div class="who" id="clockWho"></div>
+        <div class="t" id="clockOut">0:10</div>
+        <button class="cancel" id="clockCancel" onclick="hostClearClock()" style="display:none">Cancel</button>
+      </div>
+    </section>
+
     <section class="panel" id="revealPanel" style="display:none">
       <div class="revealbox">
         <div class="muted">The word was</div>
@@ -188,6 +223,7 @@
     </section>
 
     <section class="panel">
+      <div class="seg" id="whoTabs" style="display:none;margin-bottom:10px"></div>
       <div class="secret" id="secretCard">
         <div class="label">Your secret</div>
         <div class="hold">👆 Hold to peek</div>
@@ -261,6 +297,72 @@ const firebaseConfig = {
    same cluster as the real word, so they're always properly related. */
 
 const NARROW_BANK={
+"At the Barbecue":[
+["Beef Burgers","Hot Dogs","Sausages","Chicken Skewers","Pork Ribs","Lamb Chops","Halloumi","Corn on the Cob","Veggie Burgers"],
+["Burger Buns","Cheese Slices","Ketchup","Mustard","Mayo","Relish","Coleslaw","Potato Salad","Pasta Salad","Garden Salad"],
+["Charcoal","Firelighters","Tongs","Grill Brush","Foil Trays","Skewers","Chef's Apron","Meat Thermometer"],
+["Paper Plates","Plastic Cups","Napkins","Cool Box","Ice Bucket","Picnic Blanket","Garden Chairs","Gazebo","Citronella Candle","Wasp Trap"],
+["Rain Delay","Burnt Sausages","Undercooked Chicken Panic","Smoke in Your Eyes","One Person Guarding the Grill"]
+],
+"Ice Cream Shop":[
+["Vanilla","Chocolate","Strawberry","Mint Choc Chip","Cookie Dough","Salted Caramel","Pistachio","Rum and Raisin","Bubblegum","Raspberry Ripple","Honeycomb","Coconut","Banana","Toffee Fudge","Lemon Sorbet","Mango Sorbet"],
+["Single Scoop","Double Scoop","Waffle Cone","Sugar Cone","Tub","Ice Cream Sandwich","Screwball","Sundae","Knickerbocker Glory","Banana Split","Ice Cream Float"],
+["Flake","Sprinkles","Chocolate Sauce","Strawberry Sauce","Chopped Nuts","Whipped Cream","Cherry on Top","Wafer","Mini Marshmallows"],
+["Ice Cream Van Chime","Melting Fast","Dropped Cone","Seagull Attack"]
+],
+"Sandwich Fillings":[
+["Ham and Cheese","Cheese and Pickle","Cheese and Onion","BLT","Club Sandwich","Chicken Mayo","Tuna Mayo","Egg Mayo","Coronation Chicken","Prawn Mayo","Ham Salad","Chicken Salad"],
+["Bacon Butty","Sausage Butty","Fish Finger Sandwich","Chip Butty","Crisp Sandwich","Sunday Roast Leftovers"],
+["Peanut Butter and Jam","Nutella","Banana Sandwich","Jam Sandwich","Marmite","Honey Sandwich"],
+["White Bread","Brown Bread","Baguette","Wrap","Panini","Toastie","Sub Roll","Crusts Cut Off","Cut into Triangles"]
+],
+"In the Fridge":[
+["Milk","Butter","Cheese","Yoghurts","Eggs","Double Cream","Squirty Cream"],
+["Ham Slices","Bacon","Chicken Breasts","Mince","Sausages","Fish Fillets","Leftovers Tub"],
+["Ketchup","Mayonnaise","Salad Cream","Sweet Chilli Sauce","Pickle Jar","Jam Jar","Half-Used Pesto","Ancient Chutney"],
+["Lettuce","Cucumber","Tomatoes","Peppers","Salad Drawer","Forgotten Veg","Mouldy Surprise"],
+["Orange Juice","Fizzy Drinks","Beers","White Wine","Water Filter Jug","Birthday Cake Leftovers","Chocolate Hidden at the Back"]
+],
+"Christmas Dinner":[
+["Roast Turkey","Pigs in Blankets","Roast Potatoes","Stuffing","Gravy Boat","Cranberry Sauce","Bread Sauce","Sprouts","Carrots and Parsnips","Cauliflower Cheese","Red Cabbage"],
+["Christmas Pudding","Brandy Butter","Mince Pies","Trifle","Yule Log","Christmas Cake","Cheese Board","After Dinner Mints"],
+["Christmas Crackers","Paper Hats","Cracker Jokes","Table Centrepiece","Best Tablecloth","Candles on the Table"],
+["Carving the Turkey","Falling Asleep After","Board Games After Dinner","The Big Washing Up","Leftover Turkey Sandwiches","Someone's Running Late","Not Enough Chairs"]
+],
+"Pub Drinks":[
+["Pint of Lager","Pint of Bitter","Guinness","Pale Ale","IPA","Craft Beer","Shandy","Cider","Fruit Cider"],
+["House Red","House White","Rose","Prosecco","Mulled Wine"],
+["Gin and Tonic","Vodka Lemonade","Rum and Coke","Whisky","Aperol Spritz","Espresso Martini","Passion Fruit Martini","Mojito","Pina Colada","Tequila Shot","Jagerbomb"],
+["Coke","Diet Coke","Lemonade","Orange Juice and Lemonade","Lime and Soda","Alcohol-Free Beer","Tap Water"],
+["Half Pint","Pint Glass","Bar Snacks","Pork Scratchings","Salted Peanuts","Ice and a Slice"]
+],
+"Body Parts":[
+["Head","Hair","Forehead","Eyebrows","Eyelashes","Eyes","Ears","Nose","Cheeks","Lips","Teeth","Tongue","Chin","Jaw"],
+["Neck","Shoulders","Chest","Back","Tummy","Waist","Hips","Belly Button"],
+["Arms","Elbows","Wrists","Hands","Palms","Fingers","Thumbs","Fingernails","Knuckles"],
+["Legs","Thighs","Knees","Shins","Calves","Ankles","Feet","Heels","Toes","Toenails"],
+["Heart","Lungs","Brain","Stomach","Muscles","Bones","Ribs","Spine","Skin","Funny Bone"]
+],
+"Herbs, Spices & Sauces":[
+["Basil","Parsley","Coriander","Mint","Rosemary","Thyme","Sage","Chives","Dill","Oregano","Bay Leaf"],
+["Salt","Black Pepper","Paprika","Cumin","Turmeric","Cinnamon","Nutmeg","Ginger","Chilli Powder","Curry Powder","Garlic Powder","Mixed Spice"],
+["Ketchup","Brown Sauce","Mayonnaise","BBQ Sauce","Sweet Chilli","Sriracha","Soy Sauce","Worcestershire Sauce","Tabasco","Mint Sauce","Apple Sauce","Horseradish","Mustard","Salad Dressing","Vinegar","Olive Oil","Gravy Granules","Stock Cubes"]
+],
+"In the Bathroom":[
+["Toothbrush","Toothpaste","Mouthwash","Dental Floss","Electric Toothbrush"],
+["Shampoo","Conditioner","Shower Gel","Bar of Soap","Face Wash","Bubble Bath","Bath Bomb","Loofah","Sponge","Shower Cap"],
+["Towels","Bath Mat","Toilet Roll","Toilet Brush","Air Freshener","Plunger","Bathroom Scales","Laundry Basket"],
+["Razor","Shaving Foam","Tweezers","Nail Clippers","Cotton Buds","Cotton Pads","Moisturiser","Deodorant","Hairbrush","Hair Gel","Hairspray","Makeup Bag","Contact Lenses","Plasters"],
+["Steamy Mirror","Cold Tiles","Dripping Tap","Someone Banging on the Door"]
+],
+"School Subjects":[
+["Maths","English","Science","Biology","Chemistry","Physics"],
+["History","Geography","Religious Studies","Citizenship"],
+["French","Spanish","German","Latin"],
+["Art","Music","Drama","Dance","Design Technology","Food Tech","Textiles","Woodwork"],
+["PE","Games","Swimming Lessons","Cross Country","Sports Studies"],
+["Computing","ICT","Business Studies","Media Studies","Psychology","Sociology","PSHE"]
+],
 "Coffee Shop Orders":[
 ["Espresso","Double Espresso","Americano","Long Black","Filter Coffee","Decaf","Extra Shot"],
 ["Latte","Flat White","Cappuccino","Cortado","Macchiato","Mocha"],
@@ -341,6 +443,72 @@ const NARROW_BANK={
 };
 
 const SCENES_BANK={
+"At the Gym":[
+["Treadmill","Exercise Bike","Rowing Machine","Cross Trainer","Stair Climber","Spin Class"],
+["Dumbbells","Barbell","Kettlebell","Weight Plates","Squat Rack","Bench Press","Leg Press","Cable Machine","Resistance Bands","Pull-Up Bar"],
+["Squats","Lunges","Deadlift","Push-Ups","Sit-Ups","Plank","Burpees","Star Jumps","Stretching","Warm Up","Cool Down"],
+["Gym Towel","Water Bottle","Protein Shake","Gym Bag","Locker Key","Sweatband","Lifting Gloves","Gym Playlist"],
+["Leg Day","Rest Day","Personal Trainer","Gym Buddy","New Year Rush","Mirror Selfie","Machine Hogger"]
+],
+"In the Garden":[
+["Lawnmower","Strimmer","Hedge Trimmer","Leaf Blower","Pressure Washer","Garden Hose","Sprinkler","Watering Can"],
+["Spade","Garden Fork","Trowel","Rake","Hoe","Shears","Secateurs","Wheelbarrow","Gardening Gloves","Kneeling Pad"],
+["Flower Beds","Vegetable Patch","Greenhouse","Compost Heap","Bird Feeder","Bird Table","Hanging Baskets","Window Boxes","Garden Pond"],
+["Patio","Decking","Shed","Garden Fence","Garden Gate","Washing Line","Trampoline","Paddling Pool","Swing Set","Barbecue Area"],
+["Mowing Stripes","Weeding","Planting Seeds","Deadheading","Watering at Dusk","Next Door's Overhanging Tree","Slug Patrol"]
+],
+"At the Supermarket":[
+["Trolley","Basket","Trolley Coin","Bags for Life","Shopping List","Loyalty Card","Receipt"],
+["Fruit and Veg Aisle","Bakery Section","Meat Counter","Fish Counter","Deli Counter","Frozen Aisle","World Foods Aisle","Middle Aisle Bargains","Reduced Section","Yellow Stickers"],
+["Self-Checkout","Unexpected Item","Checkout Queue","Conveyor Belt","Next Customer Divider","Cashier","Scan as You Shop","Bagging Area"],
+["Free Samples","Wonky Wheel Trolley","Forgot the One Thing","Going in Hungry","Kids Asking for Sweets","Bumping into Someone You Know","Price Check","Restocking Shelves"]
+],
+"Camping Trip":[
+["Tent","Tent Pegs","Guy Ropes","Mallet","Groundsheet","Sleeping Bag","Roll Mat","Air Bed","Camping Pillow","Pop-Up Tent"],
+["Camping Stove","Gas Canister","Billy Can","Enamel Mug","Cool Box","Camping Chairs","Fold-Up Table","Head Torch","Lantern","Matches"],
+["Campfire","Toasting Marshmallows","Campfire Songs","Ghost Stories","Stargazing"],
+["Muddy Wellies","Rain on the Tent","Leaky Tent","Forgotten Tent Pegs","Shared Showers","Long Walk to the Toilet Block","Snoring in the Next Tent","Cows in the Field","Midges","Packing the Car"]
+],
+"On the Farm":[
+["Tractor","Combine Harvester","Plough","Trailer","Quad Bike","Land Rover","Hay Baler"],
+["Barn","Stable","Farmhouse","Milking Parlour","Chicken Coop","Pig Pen","Cattle Grid","Hay Bales","Scarecrow","Duck Pond"],
+["Sheepdog","Lambing Season","Shearing","Milking","Feeding Time","Mucking Out","Harvest","Market Day","Fresh Eggs","Farm Shop"],
+["Wellies in the Mud","Early Starts","Cockerel Alarm","Smell of Silage","Tractor Holding Up Traffic"]
+],
+"At the Airport":[
+["Check-In Desk","Bag Drop","Boarding Pass","Passport Control","Security Queue","Liquids Bag","Trays at Security","Body Scanner","Random Search","Taking Shoes Off"],
+["Departure Board","Gate Number","Final Call","Boarding Groups","Priority Boarding","Delayed Flight","Cancelled Flight","Gate Change Sprint"],
+["Duty Free","Giant Toblerone","Airport Prices","Airport Breakfast Pint","Meal Deal Before the Flight"],
+["Window Seat","Aisle Seat","Middle Seat","Overhead Locker","Seatbelt Sign","Tray Table","In-Flight Meal","Turbulence","Take-Off","Landing Clap"],
+["Baggage Carousel","Lost Luggage","Arrivals Hall","Passport Queue","One Person Holding All the Passports"]
+],
+"Football Match Day":[
+["Season Ticket","Turnstile","Programme","Club Shop","Replica Shirt","Half and Half Scarf","Matchday Pie","Bovril","Pre-Match Pint"],
+["Kick-Off","Half-Time","Full-Time","Injury Time","Extra Time","Penalty Shootout","VAR Check","Offside Flag","Yellow Card","Red Card","Corner Kick","Free Kick","Throw-In"],
+["The Wall","Top Corner","Nutmeg","Worldie","Own Goal","Hat-Trick","Clean Sheet","Last-Minute Winner","Screamer"],
+["Chants","Mexican Wave","Pitch Invasion","Away End","Home End","The Terraces","Floodlights","Players' Tunnel","Dugout","Fourth Official's Board"],
+["Post-Match Interview","Man of the Match","League Table","Relegation Battle","Title Race","Transfer Window","Local Derby"]
+],
+"Wedding Day":[
+["Wedding Dress","Suit Fitting","Bridesmaids","Best Man","Groomsmen","Flower Girl","Page Boy","Mother of the Bride","Father's Speech"],
+["Church Bells","Registry Office","Walking Down the Aisle","Exchanging Rings","You May Kiss the Bride","Confetti","Signing the Register","Wedding Cars"],
+["Wedding Cake","Cutting the Cake","Champagne Toast","Wedding Breakfast","Top Table","Seating Plan","Wedding Favours","Centrepieces"],
+["First Dance","Dad Dancing","Bouquet Toss","Open Bar","Wedding DJ","Photo Booth","Group Photos","Disposable Cameras","Sparkler Send-Off"],
+["Save the Date","Invitations","Gift List","RSVP","Plus One","Hen Do","Stag Do","Honeymoon","Wedding Planner","Something Blue"]
+],
+"DIY & Toolbox":[
+["Hammer","Screwdriver","Drill","Drill Bits","Spanner","Wrench","Pliers","Allen Key","Hacksaw","Handsaw","Stanley Knife","Chisel"],
+["Screws","Nails","Rawl Plugs","Nuts and Bolts","Washers","Sandpaper","WD-40","Super Glue","Duct Tape","Masking Tape","Cable Ties"],
+["Tape Measure","Spirit Level","Pencil Behind the Ear","Stud Finder","Workbench","Vice","Extension Lead","Step Ladder","Safety Goggles","Dust Sheet"],
+["Paint Roller","Paint Tray","Paintbrush","Masking the Edges","Second Coat","Wallpaper Paste","Wallpaper Bubbles","Filling Holes"],
+["Flat-Pack Furniture","Leftover Screws","Instructions Upside Down","Trip to the Tip","B&Q Run"]
+],
+"New Baby":[
+["Pram","Pushchair","Car Seat","Baby Carrier","Moses Basket","Cot","Baby Monitor","Changing Table","High Chair","Playpen"],
+["Nappies","Wet Wipes","Nappy Bag","Bibs","Muslin Cloths","Dummy","Baby Bottles","Steriliser","Baby Grow","Tiny Socks"],
+["Night Feeds","Burping","Nap Time","Tummy Time","First Smile","First Tooth","Teething","Weaning","Baby Talk","Peekaboo"],
+["Baby Shower","Gender Reveal","Choosing the Name","First Photo","Grandparents Visiting","Sleep When the Baby Sleeps","Baby Brain","Nappy Explosion"]
+],
 "In the Kitchen":[
 ["Frying Pan","Saucepan","Wok","Baking Tray","Casserole Dish","Muffin Tin"],
 ["Mixing Bowl","Whisk","Spatula","Wooden Spoon","Ladle","Tongs","Rolling Pin","Chopping Board","Pastry Brush","Skewer"],
@@ -415,6 +583,44 @@ const SCENES_BANK={
 };
 
 const BROAD_BANK={
+"Countries of the World":[
+["England","Scotland","Wales","Ireland","France","Spain","Portugal","Italy","Germany","Netherlands","Belgium","Switzerland","Austria","Greece","Turkey"],
+["Norway","Sweden","Denmark","Finland","Iceland","Poland","Czech Republic","Hungary","Croatia"],
+["USA","Canada","Mexico","Brazil","Argentina","Jamaica","Cuba"],
+["China","Japan","India","Thailand","Vietnam","Singapore","South Korea","Indonesia","Philippines"],
+["Australia","New Zealand","Fiji"],
+["Egypt","Morocco","South Africa","Kenya","Nigeria"]
+],
+"World Landmarks":[
+["Big Ben","Tower Bridge","Buckingham Palace","London Eye","Stonehenge","Edinburgh Castle","Angel of the North","Blackpool Tower"],
+["Eiffel Tower","Colosseum","Leaning Tower of Pisa","Sagrada Familia","Acropolis","Brandenburg Gate","Little Mermaid Statue","Mount Vesuvius"],
+["Statue of Liberty","Golden Gate Bridge","Grand Canyon","Niagara Falls","Mount Rushmore","Hollywood Sign","Christ the Redeemer","Machu Picchu"],
+["Great Wall of China","Taj Mahal","Mount Everest","Mount Fuji","Burj Khalifa","Pyramids of Giza","The Sphinx","Sydney Opera House","Uluru"]
+],
+"Celebrations & Occasions":[
+["Birthday Party","Surprise Party","18th Birthday Bash","21st Birthday Bash","Milestone Birthday","Kids' Party","Party Bags"],
+["Christmas Day","Christmas Eve","Boxing Day","New Year's Eve","New Year's Day","Easter Sunday","Pancake Day","Valentine's Day","Mother's Day","Father's Day","Halloween","Bonfire Night","April Fools' Day","St Patrick's Day","Burns Night"],
+["Christening","Baby's First Birthday","Naming Ceremony"],
+["Engagement Party","Anniversary","Silver Wedding","Golden Wedding","Vow Renewal"],
+["Graduation Party","Prom","Leaving Do","Retirement Party","Housewarming","Welcome Home Party","Going Away Party"]
+],
+"Fairy Tales & Stories":[
+["Cinderella","Snow White","Sleeping Beauty","Rapunzel","Little Red Riding Hood","Goldilocks","Hansel and Gretel","The Little Mermaid","Beauty and the Beast","Jack and the Beanstalk","Pinocchio","Peter Pan","Alice in Wonderland","Robin Hood","Aladdin"],
+["Big Bad Wolf","Wicked Stepmother","Fairy Godmother","Evil Queen","Three Little Pigs","Seven Dwarfs","Ugly Sisters","Prince Charming","Gingerbread Man","Three Bears","The Frog Prince"],
+["Magic Beans","Glass Slipper","Poisoned Apple","Magic Mirror","Spinning Wheel","Pumpkin Carriage","Golden Egg","Breadcrumb Trail","Happily Ever After","Once Upon a Time","The Moral of the Story"],
+["Castle Tower","Enchanted Forest","Gingerbread House","Wishing Well","Beanstalk"]
+],
+"Under the Sea":[
+["Clownfish","Angelfish","Pufferfish","Swordfish","Salmon","Cod","Mackerel","Sea Bass","Piranha","Flying Fish"],
+["Great White Shark","Hammerhead Shark","Killer Whale","Blue Whale","Humpback Whale","Bottlenose Dolphin","Manatee","Narwhal","Walrus","Sea Lion","Sea Otter"],
+["Giant Octopus","Squid","Jellyfish","Starfish","Seahorse","Lobster","Hermit Crab","Shrimp","Mussels","Oyster","Clam","Sea Urchin","Stingray","Manta Ray","Eel","Sea Turtle"],
+["Coral Garden","Seaweed","Kelp Forest","Shipwreck","Treasure Chest","Message in a Bottle","Deep Sea Trench","Anchor","Fishing Net","Scuba Diver","Pearl"]
+],
+"Dinosaurs & Ancient Times":[
+["T-Rex","Velociraptor","Triceratops","Stegosaurus","Diplodocus","Brontosaurus","Spinosaurus","Pterodactyl","Brachiosaurus","Ankylosaurus"],
+["Dinosaur Egg","Fossil","Dinosaur Footprint","Amber","Meteor Strike","Ice Age","Tar Pit","Cave Painting","Sabre-Toothed Tiger","Woolly Mammoth","Caveman Club","Discovering Fire","Stone Tools","Inventing the Wheel"],
+["Ancient Egypt","Pharaoh","Mummy","Sarcophagus","Hieroglyphics","Ancient Rome","Gladiator","Roman Soldier","Chariot Race","Viking Longboat","Viking Helmet","Knight in Armour","Castle Drawbridge","Catapult","Jousting"]
+],
 "Animals":[
 ["Elephant","Giraffe","Lion","Tiger","Zebra","Hippo","Rhino","Camel","Monkey","Gorilla","Kangaroo","Koala","Panda","Crocodile"],
 ["Penguin","Dolphin","Shark","Whale","Octopus","Crab","Seal"],
@@ -493,6 +699,59 @@ const BROAD_BANK={
 };
 
 const ABSTRACT_BANK={
+"Sayings & Idioms":[
+["Raining Cats and Dogs","Under the Weather","Once in a Blue Moon","Break the Ice","Cold Feet","Storm in a Teacup","Calm Before the Storm","Every Cloud Has a Silver Lining"],
+["Piece of Cake","Best Thing Since Sliced Bread","Spill the Beans","Full of Beans","Cool as a Cucumber","In a Pickle","Cheap as Chips","Butter Someone Up","Have Your Cake and Eat It","Bite Off More Than You Can Chew"],
+["Let the Cat Out of the Bag","Elephant in the Room","Hold Your Horses","Straight from the Horse's Mouth","Kill Two Birds with One Stone","A Little Bird Told Me","Busy as a Bee","Curiosity Killed the Cat"],
+["Break a Leg","Pull Someone's Leg","Cost an Arm and a Leg","Head in the Clouds","Heart of Gold","Cold Shoulder","See Eye to Eye","All Ears","Butterflies in Your Stomach","Bite Your Tongue"],
+["Hit the Nail on the Head","Beat Around the Bush","Barking Up the Wrong Tree","The Ball's in Your Court","Throw in the Towel","On the Fence","Cut Corners","Back to the Drawing Board","The Last Straw","Burn Your Bridges"]
+],
+"Nostalgia & Childhood":[
+["Dial-Up Internet Sound","Burning a CD","MSN Messenger","Ringtone Charts","Snake on a Brick Phone","Blowing on a Game Cartridge","Rewinding a VHS","Recording the Charts off the Radio","Teletext","Disposable Camera Wait"],
+["School Discos","Book Fair Day","Wheeling the TV Trolley In","Wet Play","Sports Day Sack Race","Heads Down Thumbs Up","The Big Parachute in PE","Class Hamster","Sitting Cross-Legged in Assembly"],
+["Trading Cards","Yo-Yos","Marbles","Virtual Pets","Scooters at the Park","Pogo Sticks","Space Hoppers","Slinkies","Spinning Tops"],
+["Corner Shop Sweets","10p Mix","Freeze Pops","Jelly and Ice Cream","Turkey Dinosaurs","Potato Smileys","School Custard","Chasing the Ice Cream Van"],
+["Being Home Before Dark","Knock and Run","Building Dens","Climbing Trees","Grass Stains","Scabby Knees","Swapping Lunchbox Snacks","Sleepover Midnight Feasts","Are We Nearly There Yet","Racing Raindrops on the Car Window"]
+],
+"Office Life":[
+["Monday Standup","Back-to-Back Meetings","Meeting That Could've Been an Email","Double-Booked","Running Over Time","Any Other Business","Action Points","Circle Back","Touch Base","Park That","Take It Offline","Quick Sync"],
+["Accidental Reply All","Out of Office","CC'd for Visibility","Per My Last Email","Just Bumping This","Inbox at 999+","Unread Emails Pile"],
+["Broken Printer","Jammed Photocopier","Fridge Thief","Passive-Aggressive Kitchen Notes","Birthday Card Going Round","Whip-Round Envelope","Cake in the Kitchen","Tea Round Politics","Someone's Fish Lunch","Loud Keyboard Guy"],
+["Hot Desking","Standing Desk","Swivel Chair Race","Stationery Cupboard Raid","Post-It Wall","Whiteboard Brainstorm","Casual Friday","Desk Plant"],
+["Performance Review","Appraisal Buzzwords","Team Building Day","Trust Falls","Icebreaker Round","Secret Santa","Christmas Party Gossip","Leaving Card","Handing in Your Notice"]
+],
+"Dating & Modern Romance":[
+["Endless Swiping","Dating App Bio","First Message","Dry Texter","Love Bombing","Breadcrumbing","Situationship","Soft Launch","Hard Launch","Defining the Relationship"],
+["First Date Nerves","Pre-Date Outfit Crisis","Splitting the First Bill","Awkward Goodbye","Text After the Date","The Three-Day Rule","Second Date Planning","Meeting Their Friends","Couple's Instagram Debut"],
+["Anniversary Forgotten","Choosing a Restaurant Standoff","What Do You Want to Eat","Stealing the Duvet","Cold Feet on Your Back","Whose Turn to Cook","Joint Streaming Profile","Sharing Chips Negotiation","Couple Nicknames","Matching Pyjamas"],
+["The Ick","Green Flags","Red Flags","Being Ghosted","Friend-Zoned","It's Not You It's Me","On a Break","Getting Back Together","Deleting the Photos","Running Into Your Ex"]
+],
+"Sleep & Bedtime":[
+["Fresh Bed Sheets","Cold Side of the Pillow","Weighted Blanket","One Leg Out","Blanket Burrito","Perfect Pillow Position","White Noise","Rain Sounds","Blackout Blinds","Night Light"],
+["Can't Switch Off","3am Thoughts","Replaying Old Conversations","Counting Sheep","Checking the Time Again","Maths About Hours of Sleep Left","One More Episode","Just One More Scroll","Phone Falling on Your Face","Triple-Checking the Alarm"],
+["The Fifth Snooze","Weekend Lie-In","Accidental Nap","Power Nap","Falling Asleep on the Sofa","Waking Up Confused","Sleep Talking","Sleepwalking","Vivid Dreams","Falling Dream Jolt","Nightmare Wake-Up"],
+["Morning Person","Five More Minutes","Duvet Too Comfy to Leave","Cold Floor Shock","Automatic Kettle Walk","Forgetting Why You're Awake","Bed Hair","Pillow Face Lines"]
+],
+"Driving & Road Life":[
+["The Thank You Wave","Not Getting a Thank You Wave","Letting Someone Out","Flash of the Headlights","The Nod to Another Driver","Beeping Too Late","Road Rage Mutter","Full Beam in Your Mirrors"],
+["Parallel Parking Audience","Third Attempt at the Bay","Tight Multi-Storey","Ticket Machine Faff","Lost the Parking Ticket","Someone in Your Spot","Door Ding Panic","Reversing with the Radio Down"],
+["Petrol Light Gamble","Wrong Fuel Fear","Forecourt Queue","Car Wash Choice Paralysis","Screenwash Empty","That Dashboard Warning Light","MOT Dread"],
+["Middle Lane Hogger","Tailgater","Crawling Behind a Tractor","Caravan Convoy","Roadworks for No Reason","Contraflow Confusion","Missed Exit Detour","Sat Nav Says U-Turn"],
+["Passenger DJ","Snack Navigator","Backseat Driver","Kids Kicking the Seat","Car Karaoke","Window Down Hair Chaos","Service Station Stretch","Travel Sweets","Fogged-Up Windows","Ice Scraping Mornings"]
+],
+"Adulting & Money":[
+["Payday Feeling","Day Before Payday","Checking the Balance Through One Eye","Direct Debit Day","Unexpected Refund Joy","Card Machine Suspense","Splitting the Bill Maths"],
+["Council Tax","Water Bill","Energy Bill Dread","Price Comparison Sites","Switching Providers","Subscription You Forgot","Free Trial Trap","Cancelling Is Impossible"],
+["Food Shop Budget","Own Brand Swap","Meal Prep Sunday","Freezer Tetris","Payday Big Shop","Beans Until Friday"],
+["Deposit Saving","Landlord Inspection","Council Bin Rules","House Viewing Poker Face","Offer Accepted Scream"],
+["Pension Confusion","Tax Return Panic","Receipts in a Shoebox","Emergency Fund","Impulse Purchase Guilt","Add to Cart Therapy","Annual Leave Maths","Sick Day Guilt"]
+],
+"Family Gatherings":[
+["Nan's Portions","Seconds Whether You Like It or Not","The Good Plates","Kids' Table","Someone's on a Diet Announcement","Dad's Carving Ceremony","Gravy Debate"],
+["How's School Going","When Are You Getting Married","Any Grandchildren Yet","You've Grown So Much","Back in My Day","Family Gossip in the Kitchen","Who's Not Talking to Who","The Same Five Stories"],
+["Board Game Argument","Monopoly Falling Out","Charades Chaos","Quiz Team Rivalry","Cards After Dinner","Kids' Talent Show","Falling Asleep in the Armchair","Football on in the Background"],
+["Group Photo Chaos","Someone Blinked","The Family WhatsApp","Forwarded Memes from Uncles","Happy Birthday Sung Badly","Cake with Too Many Candles","Washing-Up Rota Debate","Leftovers Sent Home in Tubs","Long Driveway Goodbye"]
+],
 "Feelings & Moods":[
 ["Furious","Frustrated","Annoyed","Irritated","Grumpy","Hangry"],
 ["Terrified","Startled","Anxious","Nervous","Paranoid","Suspicious"],
@@ -572,11 +831,36 @@ const DIFF_HINTS={
   expert:"Abstract and wide open — feelings, awkward moments, very British chaos. Brutal to describe.",
   mixed:"Every category from every difficulty, all in one pot."
 };
+
 /* ================= HELPERS ================= */
 const $=id=>document.getElementById(id);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 function haptic(t="light"){ if(navigator.vibrate){ navigator.vibrate(t==="heavy"?[1,20,1]:t==="medium"?15:8); } }
+
+/* Beeps via Web Audio — phones require a touch before audio is allowed,
+   so we unlock the AudioContext on the first tap anywhere. */
+let audioCtx=null;
+function ensureAudio(){
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+}
+document.addEventListener('touchstart', ensureAudio, true);
+document.addEventListener('click', ensureAudio, true);
+function beep(freq=880, dur=0.12, vol=0.3){
+  if(!audioCtx || audioCtx.state!=='running') return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='sine'; o.frequency.value=freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t=audioCtx.currentTime;
+  g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.start(t); o.stop(t+dur+0.02);
+}
+function beepWarn(){ beep(880,0.1); haptic('medium'); }
+function beepEnd(){ beep(660,0.18); setTimeout(()=>beep(520,0.35),180); haptic('heavy'); setTimeout(()=>haptic('heavy'),300); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
 function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
 
@@ -645,7 +929,8 @@ async function createGame(){
     if(!snap.exists()) break;
   }while(++tries<10);
   const pid=newPid();
-  const settings={diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__'};
+  const settings={diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
+    clockTimes:{"10":true,"20":true,"30":true,"60":true}};
   await db.ref('games/'+code).set({
     createdAt:Date.now(), status:'lobby', host:pid, settings,
     players:{ [pid]:{name, joinedAt:Date.now()} },
@@ -683,8 +968,7 @@ async function leaveGame(){
     if(CODE && PID && db){
       if(IS_HOST){ await db.ref('games/'+CODE).remove(); }
       else{
-        await db.ref('games/'+CODE+'/players/'+PID).remove();
-        await db.ref('games/'+CODE+'/scores/'+PID).remove();
+        await removePlayer(PID);
       }
     }
   }catch(e){}
@@ -758,7 +1042,18 @@ function buildSettingsUI(){
   $('sImp').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/impCount').set(Math.max(1,parseInt($('sImp').value,10)||1)); });
   $('sQRounds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/qRounds').set(parseInt($('sQRounds').value,10)||2); });
   $('sCat').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/category').set($('sCat').value); });
+  document.querySelectorAll('#sClock button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(!IS_HOST || !game) return;
+      const cur=clockTimesOf(game.settings);
+      db.ref('games/'+CODE+'/settings/clockTimes/'+b.dataset.v).set(!cur[b.dataset.v]);
+      haptic('light');
+    });
+  });
 }
+/* Older games may predate this setting — treat missing as all enabled */
+function clockTimesOf(st){ return (st && st.clockTimes) || {"10":true,"20":true,"30":true,"60":true}; }
+function enabledClockTimes(){ const ct=clockTimesOf(game?.settings); return ["10","20","30","60"].filter(k=>ct[k]); }
 function syncSettingsUI(){
   const st=game.settings||{};
   SETTING_SEGS.forEach(cfg=>{
@@ -769,6 +1064,8 @@ function syncSettingsUI(){
   $('sQRounds').value=String(st.qRounds||2);
   $('sHintField').style.display = st.impMode==='classic' ? '' : 'none';
   $('sQRoundsField').style.display = st.playStyle==='questions' ? '' : 'none';
+  const ct=clockTimesOf(st);
+  document.querySelectorAll('#sClock button').forEach(b=>b.classList.toggle('on', !!ct[b.dataset.v]));
   // category options for current difficulty
   const sel=$('sCat'); const prev=st.category||'__random__';
   sel.innerHTML='<option value="__random__">🎲 Random</option>';
@@ -845,6 +1142,85 @@ async function hostTimer(secs){
   await db.ref('games/'+CODE+'/round/timerEndsAt').set(secs>0 ? Date.now()+secs*1000 : 0);
   haptic('light');
 }
+/* ── Shared devices ──
+   A player joined normally is a "device" (their pid). Extra players created
+   for that device get device:<devicePid> and have no phone of their own —
+   the device shows tabs and everyone takes turns holding the card. */
+function myPlayerIds(){
+  const ps=game?.players||{};
+  return Object.keys(ps).filter(pid=>pid===PID || ps[pid].device===PID);
+}
+function deviceOf(pid){
+  const p=game?.players?.[pid];
+  return p?.device || pid;
+}
+let selectedLocalPid=null; // which of my device's players the secret card shows
+
+function nameTaken(name){
+  return Object.values(game?.players||{}).some(p=>p.name.toLowerCase()===name.toLowerCase());
+}
+async function addSharedPlayer(){
+  if(!game) return;
+  const inp=$('subName');
+  const name=inp.value.trim();
+  if(!name) return toast('Type their name first');
+  if(nameTaken(name)) return toast('That name is taken');
+  const pid=newPid();
+  await db.ref('games/'+CODE+'/players/'+pid).set({name, joinedAt:Date.now(), device:PID});
+  await db.ref('games/'+CODE+'/scores/'+pid).set(0);
+  inp.value='';
+  toast(name+' added to this phone');
+  haptic('medium');
+}
+async function hostAddShared(){
+  if(!IS_HOST || !game) return;
+  const name=$('hostSubName').value.trim();
+  const devicePid=$('hostSubDevice').value;
+  if(!name) return toast('Type their name first');
+  if(!devicePid) return toast('Pick whose phone they share');
+  if(nameTaken(name)) return toast('That name is taken');
+  const pid=newPid();
+  await db.ref('games/'+CODE+'/players/'+pid).set({name, joinedAt:Date.now(), device:devicePid});
+  await db.ref('games/'+CODE+'/scores/'+pid).set(0);
+  $('hostSubName').value='';
+  haptic('medium');
+}
+async function removePlayer(pid){
+  // remove a player and, if they're a device, everyone sharing their phone
+  const ps=game?.players||{};
+  const subs=Object.keys(ps).filter(x=>ps[x].device===pid);
+  for(const x of [...subs, pid]){
+    await db.ref('games/'+CODE+'/players/'+x).remove();
+    await db.ref('games/'+CODE+'/scores/'+x).remove();
+  }
+}
+
+let openClockFor=null; // which player's duration strip is open on my screen
+function toggleClockStrip(pid){
+  openClockFor = openClockFor===pid ? null : pid;
+  render();
+  haptic('light');
+}
+async function callClock(pid, secs){
+  if(!game?.round) return;
+  const c=game.round.clock;
+  if(c && c.endsAt>Date.now()) return toast('A clock is already running');
+  openClockFor=null;
+  await db.ref('games/'+CODE+'/round/clock').set({
+    target:pid, by:PID, secs:secs, endsAt:Date.now()+secs*1000
+  });
+  haptic('medium');
+}
+async function hostClearClock(){
+  if(!IS_HOST) return;
+  await db.ref('games/'+CODE+'/round/clock').remove();
+}
+
+function selectLocal(pid){
+  selectedLocalPid=pid;
+  render();
+  haptic('light');
+}
 async function hostScore(pid, delta){
   if(!IS_HOST) return;
   const cur=game.scores?.[pid]||0;
@@ -854,8 +1230,12 @@ async function hostScore(pid, delta){
 async function hostKick(pid){
   if(!IS_HOST || pid===PID) return;
   if(!confirm('Remove '+(game.players?.[pid]?.name||'this player')+'?')) return;
-  await db.ref('games/'+CODE+'/players/'+pid).remove();
-  await db.ref('games/'+CODE+'/scores/'+pid).remove();
+  await removePlayer(pid);
+}
+async function removeMySub(pid){
+  if(game?.players?.[pid]?.device!==PID) return;
+  if(!confirm('Remove '+(game.players?.[pid]?.name||'this player')+' from this phone?')) return;
+  await removePlayer(pid);
 }
 function toggleRules(){
   const wrap=$('hostRulesWrap');
@@ -883,11 +1263,24 @@ function renderLobby(){
   const pids=Object.keys(players).sort((a,b)=>players[a].joinedAt-players[b].joinedAt);
   $('lobbyCount').textContent=pids.length;
   $('lobbyPlayers').innerHTML=pids.map(pid=>{
-    const you=pid===PID?' you':'';
+    const p=players[pid];
+    const you=(pid===PID || p.device===PID)?' you':'';
     const host=pid===game.host?' 👑':'';
-    const kick=(IS_HOST && pid!==PID)?`<span class="kick" onclick="hostKick('${pid}')">✕</span>`:'';
-    return `<span class="chip${you}">${esc(players[pid].name)}${host}${kick}</span>`;
+    const shared=p.device ? ` <span style="font-weight:600;opacity:.7">📱${esc(players[p.device]?.name||'?')}'s</span>` : '';
+    const canRemove=(IS_HOST && pid!==PID) || p.device===PID;
+    const kick=canRemove?`<span class="kick" onclick="${p.device===PID?'removeMySub':'hostKick'}('${pid}')">✕</span>`:'';
+    return `<span class="chip${you}">${esc(p.name)}${host}${shared}${kick}</span>`;
   }).join('');
+  /* host: dropdown of devices (players with their own phone) */
+  if(IS_HOST){
+    const sel=$('hostSubDevice'); const prev=sel.value;
+    sel.innerHTML='<option value="">Whose phone?</option>';
+    pids.filter(pid=>!players[pid].device).forEach(pid=>{
+      const o=document.createElement('option'); o.value=pid;
+      o.textContent=players[pid].name+(pid===PID?' (you)':''); sel.appendChild(o);
+    });
+    if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  }
   $('hostSettings').style.display=IS_HOST?'block':'none';
   $('lobbyWait').style.display=IS_HOST?'none':'block';
   if(IS_HOST){
@@ -910,9 +1303,21 @@ function renderPlay(){
   $('playCat').textContent=r.category||'';
   $('playMode').textContent=r.impMode==='undercover'?'🥸 Undercover':'🕵️ Classic';
 
-  /* my secret */
-  const mine=r.assignments?.[PID];
+  /* my secret — possibly several players sharing this phone */
+  const myIds=myPlayerIds();
+  if(!selectedLocalPid || !myIds.includes(selectedLocalPid)) selectedLocalPid=PID;
+  const tabs=$('whoTabs');
+  if(myIds.length>1){
+    tabs.style.display='flex';
+    tabs.innerHTML=myIds.map(pid=>
+      `<button class="${pid===selectedLocalPid?'on':''}" onclick="selectLocal('${pid}')">${esc(players[pid]?.name||'?')}</button>`
+    ).join('');
+  }else{
+    tabs.style.display='none';
+  }
+  const mine=r.assignments?.[selectedLocalPid];
   const card=$('secretCard');
+  card.dataset.pname=players[selectedLocalPid]?.name||'';
   card.dataset.word=mine?mine.display:'—';
   card.dataset.sub=mine?(mine.sub||''):'';
   card.dataset.imp=(mine && mine.imp && r.impMode!=='undercover')?'1':'0';
@@ -944,7 +1349,8 @@ function renderPlay(){
       $('qProg').textContent=`Round ${q.round} of ${r.qTotalRounds} · Q${(idx % pids.length)+1}/${pids.length}`;
       $('qAsker').textContent=players[q.asker]?.name||'?';
       $('qAskee').textContent=players[q.askee]?.name||'?';
-      $('qCard').classList.toggle('me', q.asker===PID || q.askee===PID);
+      const myQ=myPlayerIds();
+      $('qCard').classList.toggle('me', myQ.includes(q.asker) || myQ.includes(q.askee));
       $('qNextBtn').style.display='';
       $('qNextBtn').textContent = idx===r.qSchedule.length-1 ? 'Finish Questions' : 'Next Question';
     }
@@ -953,6 +1359,8 @@ function renderPlay(){
   }
 
   /* scores */
+  const times=enabledClockTimes();
+  const clockActive=r.clock && r.clock.endsAt>Date.now();
   $('scoreList').innerHTML=pids.map(pid=>{
     const nm=esc(players[pid].name)+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
     const pts=game.scores?.[pid]||0;
@@ -962,7 +1370,12 @@ function renderPlay(){
         <button onclick="hostScore('${pid}',3)">+3</button>
         <button onclick="hostScore('${pid}',5)">+5</button>
       </div>`:'';
-    return `<div class="scorerow"><span class="nm">${nm}</span>${btns}<span class="pts">${pts} pts</span></div>`;
+    const canClock = times.length>0 && pid!==PID && !clockActive;
+    const clockBtn = canClock ? `<button class="clockbtn" onclick="toggleClockStrip('${pid}')">⏱</button>` : '';
+    const strip = (openClockFor===pid && canClock)
+      ? `<div class="clockstrip">${times.map(t=>`<button onclick="callClock('${pid}',${t})">${t==='60'?'1 min':t+'s'}</button>`).join('')}</div>`
+      : '';
+    return `<div class="scorerow"><span class="nm">${nm}</span>${btns}${clockBtn}<span class="pts">${pts} pts</span></div>${strip}`;
   }).join('');
 
   /* host controls */
@@ -972,32 +1385,71 @@ function renderPlay(){
     if($('hostRulesWrap').style.display!=='none') syncSettingsUI();
   }
 
-  /* timer */
+  /* timers: shared discussion timer + player clock */
   clearInterval(timerTick);
   const tick=()=>{
-    const ends=game?.round?.timerEndsAt||0;
+    const rr=game?.round||{};
+    /* shared timer chip */
+    const ends=rr.timerEndsAt||0;
     const chip=$('playTimer');
-    if(!ends){ chip.style.display='none'; chip.classList.remove('hot'); return; }
-    const left=Math.ceil((ends-Date.now())/1000);
-    chip.style.display='inline-flex';
-    if(left<=0){
-      $('playTimerOut').textContent='TIME!';
-      chip.classList.add('hot');
+    if(!ends){ chip.style.display='none'; chip.classList.remove('hot'); }
+    else{
+      const left=Math.ceil((ends-Date.now())/1000);
+      chip.style.display='inline-flex';
+      if(left<=0){
+        $('playTimerOut').textContent='TIME!';
+        chip.classList.add('hot');
+        cueOnce('t'+ends+'end', beepEnd);
+      }else{
+        $('playTimerOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+        chip.classList.toggle('hot', left<=10);
+        if(left<=3) cueOnce('t'+ends+'w'+left, beepWarn);
+      }
+    }
+    /* player clock */
+    const c=rr.clock;
+    const panel=$('clockPanel');
+    if(c && c.endsAt > Date.now()-5000){
+      panel.style.display='block';
+      const targetName=game.players?.[c.target]?.name||'?';
+      const byName=game.players?.[c.by]?.name||'?';
+      const left=Math.ceil((c.endsAt-Date.now())/1000);
+      $('clockCancel').style.display=IS_HOST?'':'none';
+      if(left<=0){
+        $('clockWho').textContent='⏰ TIME\'S UP, '+targetName.toUpperCase()+'!';
+        $('clockOut').textContent='0:00';
+        $('clockBox').classList.add('hot');
+        cueOnce('c'+c.endsAt+'end', beepEnd);
+      }else{
+        $('clockWho').textContent='⏰ '+byName+' put '+targetName+' on the clock!';
+        $('clockOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+        $('clockBox').classList.toggle('hot', left<=5);
+        if(left<=3) cueOnce('c'+c.endsAt+'w'+left, beepWarn);
+      }
     }else{
-      $('playTimerOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
-      chip.classList.toggle('hot', left<=10);
-      if(left===10) haptic('medium');
+      panel.style.display='none';
+      $('clockBox').classList.remove('hot');
     }
   };
   tick();
-  timerTick=setInterval(tick, 500);
+  timerTick=setInterval(tick, 250);
+}
+
+/* Fire a sound/vibration cue exactly once per unique key */
+const firedCues=new Set();
+function cueOnce(key, fn){
+  if(firedCues.has(key)) return;
+  firedCues.add(key);
+  if(firedCues.size>200) firedCues.clear();
+  fn();
 }
 
 /* ================= HOLD-TO-PEEK SECRET CARD ================= */
 function resetSecretCard(){
   const card=$('secretCard');
   card.classList.remove('revealing','imp');
-  card.innerHTML='<div class="label">Your secret</div><div class="hold">👆 Hold to peek</div>';
+  const nm=card.dataset.pname||'';
+  card.innerHTML='<div class="label">'+(nm?esc(nm)+'\u2019s secret':'Your secret')+'</div><div class="hold">👆 Hold to peek</div>';
 }
 function showSecretCard(){
   const card=$('secretCard');
