@@ -97,6 +97,22 @@
   .clockstrip button{appearance:none;border:1px solid #ffb9c8;background:#fff3f5;color:#d0244b;border-radius:999px;padding:6px 12px;font-weight:900;font-size:13px;cursor:pointer}
   .clockbtn{appearance:none;border:none;border-radius:10px;padding:10px 14px;font-weight:900;font-size:14px;cursor:pointer;
     background:linear-gradient(135deg,#ff5b7a,#ff9d5c);color:#fff;box-shadow:0 4px 10px rgba(255,91,122,.3);white-space:nowrap}
+  .qcard{background:linear-gradient(180deg,#fff,#ece8ff);border:1px solid #d7d2ff;border-radius:14px;padding:14px;margin-bottom:10px}
+  .qcard .qname{font-weight:1000;text-transform:uppercase;letter-spacing:1px;font-size:14px;margin-bottom:4px}
+  .qcard .qtext{font-weight:900;font-size:clamp(17px,4.5vw,21px);line-height:1.25}
+  .qcard textarea{width:100%;border:1px solid #e4e0ff;border-radius:10px;padding:10px;font-size:16px;margin-top:8px;font-family:inherit;resize:none}
+  .answerrow{background:#fff;border:1px solid #e6e6f4;border-radius:12px;padding:10px 12px;margin-bottom:6px}
+  .answerrow .an{font-weight:900;color:#5a37ff;font-size:13px}
+  .answerrow .at{font-weight:800;font-size:16px}
+  .voterow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e6e6f4;border-radius:12px;padding:10px;margin-bottom:8px}
+  .voterow .vn{font-weight:1000;flex-basis:100%}
+  .voterow button{appearance:none;border:1px solid #e6e6f4;background:#fafaff;border-radius:999px;padding:8px 14px;font-weight:800;cursor:pointer}
+  .voterow button.picked{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  #artCanvas{width:100%;border-radius:12px;border:2px solid #d7d2ff;background:#fff;touch-action:none;display:block}
+  .turnbanner{text-align:center;font-weight:1000;font-size:clamp(16px,4.5vw,20px);padding:10px;border-radius:12px;background:#efeaff;color:#5a37ff;margin-bottom:8px}
+  .turnbanner.me{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;animation:pulse 1.2s infinite}
+  .bigstop{width:100%;padding:26px;font-size:24px;border-radius:16px}
+  .timesrow{display:flex;justify-content:space-between;background:#fff;border:1px solid #e6e6f4;border-radius:10px;padding:8px 12px;margin-bottom:4px;font-weight:800}
   .revealbox{background:#fff;border:2px solid #ffb9c8;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px}
   .revealbox .w{font-weight:1000;font-size:clamp(26px,8vw,40px);text-transform:uppercase}
   .revealbox .imps{font-weight:900;color:#d0244b;margin-top:4px}
@@ -155,13 +171,29 @@
     </section>
     <section class="panel" id="hostSettings" style="display:none">
       <h3>Game rules (host only)</h3>
-      <div class="field"><label>Difficulty</label>
+      <div class="field"><label>Game mode</label>
+        <div class="seg" id="sGameMode">
+          <button data-v="word" class="on">🕵️ Word Imposter</button>
+          <button data-v="odd">❓ Odd One Out</button>
+          <button data-v="artist">🎨 Fake Artist</button>
+          <button data-v="seconds">⏱ Split Second</button>
+        </div>
+        <span class="muted" id="gameModeHint"></span>
+      </div>
+      <div class="field" id="sOddTypeField" style="display:none"><label>Odd One Out content</label>
+        <div class="seg" id="sOddType">
+          <button data-v="questions">Questions</button>
+          <button data-v="statements">Statements</button>
+          <button data-v="both" class="on">Both</button>
+        </div>
+      </div>
+      <div class="field" id="sDiffField"><label>Difficulty</label>
         <div class="seg" id="sDiff">
           <button data-v="easy" class="on">Easy</button><button data-v="medium">Medium</button>
           <button data-v="hard">Hard</button><button data-v="expert">Expert</button><button data-v="mixed">Mixed</button>
         </div>
       </div>
-      <div class="field"><label>Imposter style</label>
+      <div class="field" id="sImpModeField"><label>Imposter style</label>
         <div class="seg" id="sMode">
           <button data-v="classic" class="on">Classic</button><button data-v="undercover">Undercover</button>
         </div>
@@ -169,12 +201,12 @@
       <div class="field" id="sHintField"><label>Related word hint</label>
         <div class="seg" id="sHint"><button data-v="on" class="on">On</button><button data-v="off">Off</button></div>
       </div>
-      <div class="field"><label>Play style</label>
+      <div class="field" id="sStyleField"><label>Play style</label>
         <div class="seg" id="sStyle">
           <button data-v="party" class="on">Free Play</button><button data-v="questions">Question Rounds</button>
         </div>
       </div>
-      <div class="row">
+      <div class="row" id="sImpRow">
         <div class="field" style="flex:1"><label>Imposters</label><input type="number" id="sImp" min="1" value="1"></div>
         <div class="field" id="sQRoundsField" style="flex:1;display:none"><label>Question rounds</label>
           <select id="sQRounds"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
@@ -187,6 +219,11 @@
         </div>
         <button class="btn secondary" onclick="hostAddShared()" style="margin-top:6px">Add shared player</button>
       </div>
+      <div class="field" id="sGuessField"><label>Imposter word guess (+3)</label>
+        <div class="seg" id="sGuess">
+          <button data-v="on" class="on">On</button><button data-v="off">Off</button>
+        </div>
+      </div>
       <div class="field"><label>Clock times players can call</label>
         <div class="seg" id="sClock">
           <button data-v="10" class="on">10s</button><button data-v="20" class="on">20s</button>
@@ -194,7 +231,7 @@
         </div>
         <span class="muted">Anyone can put a slow player "on the clock". Turn all off to disable.</span>
       </div>
-      <div class="field"><label>Category</label><select id="sCat"><option value="__random__">🎲 Random</option></select></div>
+      <div class="field" id="sCatField"><label>Category</label><select id="sCat"><option value="__random__">🎲 Random</option></select></div>
       <button class="btn primary big" onclick="hostStartRound()">Start Round 1</button>
     </section>
     <section class="panel"><button class="btn danger" onclick="leaveGame()">Leave Game</button></section>
@@ -228,6 +265,32 @@
     <section class="panel">
       <div class="secretwrap" id="secretCards"></div>
       <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
+      <div id="wordGuessWrap"></div>
+    </section>
+
+    <section class="panel" id="oddPanel" style="display:none">
+      <div id="oddContent"></div>
+    </section>
+
+    <section class="panel" id="artistPanel" style="display:none">
+      <div class="turnbanner" id="artTurn"></div>
+      <canvas id="artCanvas" width="800" height="600"></canvas>
+      <p class="muted" style="text-align:center;margin:8px 0 0" id="artHint">One continuous stroke per turn — lift your finger and it's locked in.</p>
+    </section>
+
+    <section class="panel" id="secondsPanel" style="display:none">
+      <div class="turnbanner" id="secTurn"></div>
+      <div id="secContent"></div>
+    </section>
+
+    <section class="panel" id="votePanel" style="display:none">
+      <h3>🗳 Who's the imposter?</h3>
+      <div id="voteRows"></div>
+      <p class="muted" id="voteProgress"></p>
+    </section>
+
+    <section class="panel" id="resultPanel" style="display:none">
+      <div id="resultContent"></div>
     </section>
 
     <section class="panel" id="qPanel" style="display:none">
@@ -831,6 +894,126 @@ const DIFF_HINTS={
   mixed:"Every category from every difficulty, all in one pot."
 };
 
+/* ================= ODD ONE OUT — QUESTION PAIRS =================
+   [main question everyone gets, similar question the imposter gets]
+   Pairs share an answer space so the imposter's answer looks plausible. */
+const ODD_PAIRS={
+questions:[
+["How many hours of sleep did you get last night?","How many hours of sleep do you need to feel human?"],
+["What's the fastest you've ever driven? (mph)","What speed do you usually do on the motorway? (mph)"],
+["How many cups of tea or coffee do you have a day?","How many glasses of water do you have a day?"],
+["How many countries have you visited?","How many holidays abroad have you been on?"],
+["What age were you when you got your first phone?","What age were you when you joined social media?"],
+["How many hours a day are you on your phone?","How many hours a day do you watch TV?"],
+["How much would you spend on a pair of trainers? (£)","How much would you spend on a night out? (£)"],
+["How many slices of pizza could you eat in one sitting?","How many roast potatoes could you eat in one sitting?"],
+["What time did you go to bed last night?","What time do you wish you went to bed most nights?"],
+["Out of 10, how good a driver are you?","Out of 10, how good a cook are you?"],
+["How old were you when you learned to ride a bike?","How old were you when you learned to swim?"],
+["How many keys are on your keyring?","How many apps are on your phone's home screen?"],
+["How long is your journey to work in minutes?","How long do you take to get ready in the morning?"],
+["How many weddings have you been to?","How many hen or stag dos have you been to?"],
+["What percentage battery is your phone on right now?","What's the lowest battery you'd leave the house on?"],
+["How many hours could you last without your phone?","How many hours could you last on a road trip without a stop?"],
+["What's your shoe size?","How many pairs of shoes do you own?"],
+["How many days in a row would you wear the same jeans?","How many days could you go without washing your hair?"],
+["What time is your first alarm set for?","What time do you actually get out of bed?"],
+["How much is a pint where you live? (£)","How much is a meal deal these days? (£)"],
+["Out of 10, how competitive are you?","Out of 10, how stubborn are you?"],
+["Out of 10, rate your own singing.","Out of 10, rate your own dancing."],
+["How many hours could you binge one series in a day?","How many hours could you game in a day?"],
+["What age do you want to retire?","What age do you think you'll actually retire?"],
+["How many cousins do you have?","How many people were in your school friend group?"],
+["How many days would you survive a zombie apocalypse?","How many days would you survive in the wild?"],
+["How many takeaways have you had this month?","How many times have you cooked from scratch this week?"],
+["What's your lucky number?","How many kids would you like?"],
+["Out of 10, how well do you handle spice?","Out of 10, how well do you handle the cold?"],
+["How many times do you check the front door is locked?","How many alarms do you set in the morning?"],
+["What's your go-to takeaway order?","What's your go-to hangover food?"],
+["What's your favourite crisp flavour?","What's your favourite sandwich filling?"],
+["What's the first app you open in the morning?","What app do you waste the most time on?"],
+["What's your dream holiday destination?","Where would you move if money didn't matter?"],
+["What's your favourite day of the week?","What's your least favourite day of the week?"],
+["What would you grab first if the house was on fire?","What's the most expensive thing you own?"],
+["What was your first pet's name?","What would you name a new puppy?"],
+["What's your karaoke song?","What song gets you on the dance floor?"],
+["What's your comfort TV show?","What show have you rewatched the most?"],
+["What did you want to be when you grew up?","What's your dream job now?"],
+["What's your usual coffee shop order?","What's your usual pub order?"],
+["What's the best pizza topping?","What's the best bit of a roast dinner?"],
+["What's your most used emoji?","What emoji do you never use?"],
+["What superpower would you pick?","What superpower would be the most annoying to have?"],
+["Who's the funniest person in this room?","Who in this room would survive longest in a horror film?"],
+["Who in this room is most likely to be famous?","Who in this room is most likely to end up on the news?"],
+["Who in this room takes the longest to get ready?","Who in this room is always late?"],
+["What's your favourite season?","What's the best month of the year?"],
+["What's the best biscuit?","What's the best chocolate bar?"],
+["What's your favourite smell?","What smell reminds you of being a kid?"],
+["What word do you say too much?","What's your favourite word?"],
+["What's the best sauce?","What sauce goes on chips?"],
+["What's your death row meal?","What would you eat every day if calories didn't count?"],
+["What's the worst chore?","What chore do you secretly enjoy?"],
+["Where's the best place you've been on holiday?","Where's the worst place you've been on holiday?"],
+["What's your favourite ice cream flavour?","What's your favourite milkshake flavour?"],
+["What's the first concert you went to?","What's the best concert you've been to?"],
+["What's your go-to dance move?","What's your party trick?"],
+["What's your biggest fear?","What's your most irrational fear?"],
+["What's the best Christmas film?","What's the best film to watch when you're ill?"],
+["What animal are you most scared of?","What animal would you least like to be stuck in a lift with?"],
+["What time is acceptable for your first drink on holiday?","What time should lunch be?"],
+["What's the best age to be?","What age do you still feel inside?"],
+["What's your favourite fast food chain?","What's your favourite pizza place?"],
+["What's the most overrated food?","What food could you not live without?"],
+["Describe your Sunday in one word.","Describe your Monday in one word."],
+["What's the best thing about being an adult?","What's the worst thing about being an adult?"],
+["What would your walk-on song be?","What song makes you emotional?"],
+["What's your top guilty pleasure song?","What's secretly your favourite cheesy film?"],
+["What's the last thing you took a photo of?","What's your phone wallpaper?"]
+],
+statements:[
+["Rate 1-10: pineapple on pizza","Rate 1-10: cold pizza for breakfast"],
+["Rate 1-10: how much you love Mondays","Rate 1-10: how much you love mornings"],
+["Rate 1-10: camping as a holiday","Rate 1-10: all-inclusive resorts"],
+["Rate 1-10: your own cooking","Rate 1-10: your mum's cooking"],
+["Rate 1-10: horror films","Rate 1-10: rom-coms"],
+["Rate 1-10: how organised you are","Rate 1-10: how tidy your bedroom is right now"],
+["Rate 1-10: karaoke","Rate 1-10: public speaking"],
+["Rate 1-10: winter","Rate 1-10: summer"],
+["Rate 1-10: cats","Rate 1-10: dogs"],
+["Rate 1-10: marmite","Rate 1-10: olives"],
+["Rate 1-10: how good you'd be in a crisis","Rate 1-10: how good you are at keeping secrets"],
+["Rate 1-10: the gym as a hobby","Rate 1-10: running for fun"],
+["Rate 1-10: how romantic you are","Rate 1-10: how jealous you get"],
+["Rate 1-10: your texting speed","Rate 1-10: your spelling"],
+["Rate 1-10: rollercoasters","Rate 1-10: flying"],
+["Rate 1-10: how well you handle spice","Rate 1-10: how well you handle your drink"],
+["Rate 1-10: board games","Rate 1-10: card games"],
+["Rate 1-10: tea","Rate 1-10: coffee"],
+["Rate 1-10: how much you trust the person on your left","Rate 1-10: how much the person on your left trusts you"],
+["Rate 1-10: your parallel parking","Rate 1-10: your sense of direction"],
+["Rate 1-10: being a morning person","Rate 1-10: being a night owl"],
+["Rate 1-10: musicals","Rate 1-10: pantomimes"],
+["Rate 1-10: how superstitious you are","Rate 1-10: how much you believe in ghosts"],
+["Rate 1-10: gravy on chips","Rate 1-10: curry sauce on chips"],
+["Rate 1-10: your poker face","Rate 1-10: how good a liar you are"],
+["Rate 1-10: how patient you are","Rate 1-10: how good you are at queueing"],
+["Rate 1-10: Christmas songs in November","Rate 1-10: decorations up until February"],
+["Rate 1-10: how funny you think you are","Rate 1-10: how funny your mates think you are"],
+["Rate 1-10: small talk","Rate 1-10: networking events"],
+["Rate 1-10: the beach","Rate 1-10: the pool"],
+["Rate 1-10: how you'd do on a quiz show","Rate 1-10: your general knowledge"],
+["Rate 1-10: surprise parties","Rate 1-10: being the centre of attention"],
+["Rate 1-10: how adventurous you are with food","Rate 1-10: how brave you are with heights"],
+["Rate 1-10: your handwriting","Rate 1-10: your drawing skills"],
+["Rate 1-10: how likely you are to cry at a film","Rate 1-10: how likely you are to cry at a wedding"],
+["Rate 1-10: your fashion sense","Rate 1-10: your haircut right now"],
+["Rate 1-10: how well you keep New Year's resolutions","Rate 1-10: how well you stick to diets"],
+["Rate 1-10: talking on the phone","Rate 1-10: voice notes"],
+["Rate 1-10: how nosy you are","Rate 1-10: how much you love gossip"],
+["Rate 1-10: your alcohol tolerance","Rate 1-10: your caffeine tolerance"]
+]
+};
+
 /* ================= HELPERS ================= */
 const $=id=>document.getElementById(id);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -982,7 +1165,7 @@ async function createGame(){
     if(!snap.exists()) break;
   }while(++tries<10);
   const pid=newPid();
-  const settings={diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
+  const settings={gameMode:'word', oddType:'both', guessOn:true, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
     clockTimes:{"10":true,"20":true,"30":true,"60":true}};
   await db.ref('games/'+code).set({
     createdAt:Date.now(), status:'lobby', host:pid, settings,
@@ -1075,10 +1258,20 @@ window.addEventListener('load', async ()=>{
 });
 
 /* ================= HOST: SETTINGS UI ================= */
+const MODE_NAMES={word:'🕵️ Word Imposter', odd:'❓ Odd One Out', artist:'🎨 Fake Artist', seconds:'⏱ Split Second'};
+const MODE_HINTS={
+  word:'Everyone gets the word except the imposters. Give clues, sniff them out.',
+  odd:'Everyone answers a question — but one person got a slightly different question. Compare answers, then vote.',
+  artist:'Everyone draws one line each on a shared picture. One of you doesn\u2019t know what you\u2019re drawing. Then vote.',
+  seconds:'Everyone times the same number of seconds blind — but the imposter only knows a range. Then vote.'
+};
 const SETTING_SEGS=[
+  {id:'sGameMode', key:'gameMode'},
+  {id:'sOddType', key:'oddType'},
   {id:'sDiff', key:'diff'},
   {id:'sMode', key:'impMode', map:v=>v},
   {id:'sHint', key:'hintOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sGuess', key:'guessOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sStyle', key:'playStyle'}
 ];
 function buildSettingsUI(){
@@ -1115,10 +1308,20 @@ function syncSettingsUI(){
   });
   if(document.activeElement!==$('sImp')) $('sImp').value=st.impCount||1;
   $('sQRounds').value=String(st.qRounds||2);
-  $('sHintField').style.display = st.impMode==='classic' ? '' : 'none';
-  $('sQRoundsField').style.display = st.playStyle==='questions' ? '' : 'none';
   const ct=clockTimesOf(st);
   document.querySelectorAll('#sClock button').forEach(b=>b.classList.toggle('on', !!ct[b.dataset.v]));
+  /* show only the settings that apply to the chosen game mode */
+  const gm=st.gameMode||'word';
+  $('gameModeHint').textContent=MODE_HINTS[gm]||'';
+  $('sOddTypeField').style.display = gm==='odd' ? '' : 'none';
+  $('sDiffField').style.display = (gm==='word'||gm==='artist') ? '' : 'none';
+  $('sCatField').style.display = (gm==='word'||gm==='artist') ? '' : 'none';
+  $('sImpModeField').style.display = gm==='word' ? '' : 'none';
+  $('sHintField').style.display = (gm==='word' && st.impMode==='classic') ? '' : 'none';
+  $('sStyleField').style.display = gm==='word' ? '' : 'none';
+  $('sImpRow').style.display = gm==='word' ? '' : 'none';
+  $('sQRoundsField').style.display = (gm==='word' && st.playStyle==='questions') ? '' : 'none';
+  $('sGuessField').style.display = gm!=='odd' ? '' : 'none';
   // category options for current difficulty
   const sel=$('sCat'); const prev=st.category||'__random__';
   sel.innerHTML='<option value="__random__">🎲 Random</option>';
@@ -1134,6 +1337,19 @@ async function hostStartRound(){
   const pids=Object.keys(game.players||{});
   if(pids.length<2) return toast('Need at least 2 players');
   const st=game.settings||{};
+  const gm=st.gameMode||'word';
+  const num=(game.round?.num||0)+1;
+  if(gm!=='word'){
+    if(gm==='odd' && pids.length<3) return toast('Odd One Out needs at least 3 players');
+    let round;
+    if(gm==='odd') round=dealOddRound(pids, st, num);
+    if(gm==='artist') round=dealArtistRound(pids, st, num);
+    if(gm==='seconds') round=dealSecondsRound(pids, st, num);
+    secRunning=null;
+    await db.ref('games/'+CODE).update({status:'playing', round});
+    haptic('medium');
+    return;
+  }
   const bank=activeBank(st.diff||'easy');
   const cat=(st.category && st.category!=='__random__' && bank[st.category]) ? st.category : pick(Object.keys(bank));
   const words=catWords(bank,cat);
@@ -1162,7 +1378,9 @@ async function hostStartRound(){
   });
 
   const round={
-    num:(game.round?.num||0)+1,
+    mode:'word',
+    num,
+    guessOn:(st.guessOn!==false),
     category:cat, word,
     impMode:st.impMode||'classic',
     imposters:impPids,
@@ -1291,6 +1509,432 @@ function toggleRules(){
   $('rulesToggle').textContent=show?'Hide rules':'Edit rules';
 }
 
+
+/* ═══════════════ GAME MODES: round dealing ═══════════════ */
+let usedPairsLocal={questions:new Set(), statements:new Set()};
+
+function pickWordAndCategory(st){
+  const bank=activeBank(st.diff||'easy');
+  const cat=(st.category && st.category!=='__random__' && bank[st.category]) ? st.category : pick(Object.keys(bank));
+  const words=catWords(bank,cat);
+  usedWordsLocal[cat]=usedWordsLocal[cat]||new Set();
+  let fresh=words.filter(w=>!usedWordsLocal[cat].has(w));
+  if(!fresh.length){ usedWordsLocal[cat].clear(); fresh=words.slice(); }
+  const word=pick(fresh);
+  usedWordsLocal[cat].add(word);
+  return {bank, cat, word};
+}
+
+function dealOddRound(pids, st, num){
+  let type=st.oddType||'both';
+  if(type==='both') type=Math.random()<0.64?'questions':'statements';
+  const pool=ODD_PAIRS[type];
+  usedPairsLocal[type]=usedPairsLocal[type]||new Set();
+  let idxs=pool.map((_,i)=>i).filter(i=>!usedPairsLocal[type].has(i));
+  if(!idxs.length){ usedPairsLocal[type].clear(); idxs=pool.map((_,i)=>i); }
+  const idx=pick(idxs);
+  usedPairsLocal[type].add(idx);
+  const [main, impQ]=pool[idx];
+  const impPid=pick(pids);
+  return {mode:'odd', num, phase:'answer', qMain:main, qImp:impQ, impPid,
+          answers:{}, votes:{}, scored:false, timerEndsAt:0};
+}
+
+function dealArtistRound(pids, st, num){
+  const {cat, word}=pickWordAndCategory(st);
+  const impPid=pick(pids);
+  const order=shuffle(pids.slice());
+  return {mode:'artist', num, phase:'draw', guessOn:(st.guessOn!==false), category:cat, word, impPid,
+          order, turnIdx:0, totalTurns:pids.length*2,
+          votes:{}, scored:false, timerEndsAt:0};
+}
+
+function dealSecondsRound(pids, st, num){
+  const target=(1+Math.floor(Math.random()*20))*500;         // 0.5s to 10s in halves
+  const WIN=2500;                                            // imposter window width
+  const low=Math.max(500, Math.min(target-Math.floor(Math.random()*(WIN+1)), 10000-WIN));
+  const impPid=pick(pids);
+  return {mode:'seconds', num, phase:'play', guessOn:(st.guessOn!==false), target, impLow:low, impHigh:low+WIN,
+          impPid, order:shuffle(pids.slice()), turnIdx:0, times:{},
+          votes:{}, scored:false, timerEndsAt:0};
+}
+
+/* ═══════════════ Player actions ═══════════════ */
+async function submitOddAnswer(pid){
+  const ta=document.getElementById('ans-'+pid);
+  if(!ta) return;
+  const txt=ta.value.trim();
+  if(!txt) return toast('Type an answer first');
+  await db.ref('games/'+CODE+'/round/answers/'+pid).set(txt.slice(0,80));
+  haptic('medium');
+}
+async function castVote(voterPid, targetPid){
+  if(game?.round?.votes?.[voterPid]) return;
+  await db.ref('games/'+CODE+'/round/votes/'+voterPid).set(targetPid);
+  haptic('medium');
+}
+
+/* Split Second blind timer (all local until Stop) */
+let secRunning=null; // {pid, startedAt}
+function secPress(pid){
+  if(!game?.round || game.round.mode!=='seconds') return;
+  if(secRunning && secRunning.pid===pid){
+    const ms=Date.now()-secRunning.startedAt;
+    secRunning=null;
+    db.ref('games/'+CODE+'/round/times/'+pid).set(ms);
+    db.ref('games/'+CODE+'/round/turnIdx').set((game.round.turnIdx||0)+1);
+    haptic('heavy');
+  }else if(!secRunning){
+    secRunning={pid, startedAt:Date.now()};
+    haptic('medium');
+    renderSecondsPanel();
+  }
+}
+
+/* ═══════════════ Imposter word guess (+3) ═══════════════ */
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  if(!m) return n; if(!n) return m;
+  let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){
+    const cur=[i];
+    for(let j=1;j<=n;j++){
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    prev=cur;
+  }
+  return prev[n];
+}
+function normTxt(t){ return (t||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+/* Spelling doesn't need to be perfect — but it has to be close */
+function fuzzyMatch(guess, answer){
+  const g=normTxt(guess), w=normTxt(answer);
+  if(!g||!w) return false;
+  if(g===w) return true;
+  const tol = w.length<=5 ? 1 : w.length<=10 ? 2 : 3;
+  return levenshtein(g,w)<=tol;
+}
+async function submitImpGuess(pid){
+  const inp=document.getElementById('guess-'+pid);
+  if(!inp) return;
+  const txt=inp.value.trim();
+  if(!txt) return toast('Type your guess first');
+  const r=game?.round; if(!r || r.guessOn===false || (r.impGuesses||{})[pid]) return;
+  let correct=false;
+  if(r.mode==='seconds'){
+    const v=parseFloat(txt.replace(/[^0-9.]/g,''));
+    correct = !isNaN(v) && Math.round(v*1000)===r.target;
+  }else{
+    correct = fuzzyMatch(txt, r.word);
+  }
+  await db.ref('games/'+CODE+'/round/impGuesses/'+pid).set({text:txt.slice(0,40), correct});
+  if(correct) await db.ref('games/'+CODE+'/scores/'+pid).set((game.scores?.[pid]||0)+3);
+  haptic(correct?'heavy':'light');
+}
+function guessBoxHTML(pid, prompt){
+  return '<div class="qcard"><div class="qname" style="color:#5a37ff">'+esc(playerNameOf(pid))+' — guess for +3</div>'+
+    '<div class="muted">'+prompt+'</div>'+
+    '<textarea id="guess-'+pid+'" rows="1" maxlength="40" placeholder="Your guess..."></textarea>'+
+    '<button class="btn primary" style="margin-top:6px" onclick="submitImpGuess(\''+pid+'\')">Lock In Guess</button></div>';
+}
+function guessResultHTML(r){
+  const gs=r.impGuesses||{};
+  return Object.keys(gs).map(pid=>{
+    const g=gs[pid];
+    return '<div class="answerrow"><div class="an">'+esc(playerNameOf(pid))+'\u2019s guess</div>'+
+      '<div class="at">'+(g.correct?'🎯 ':'❌ ')+'"'+esc(g.text)+'" — '+(g.correct?'CORRECT! +3':'wrong')+'</div></div>';
+  }).join('');
+}
+/* Don't wipe a box someone is typing in when the game re-renders */
+function safeSetHTML(el, html){
+  const ae=document.activeElement;
+  if(ae && el.contains(ae) && /INPUT|TEXTAREA/.test(ae.tagName)) return false;
+  el.innerHTML=html;
+  return true;
+}
+
+/* ═══════════════ Voting + scoring ═══════════════ */
+function computeVoteResults(r, pids){
+  const tally={};
+  Object.values(r.votes||{}).forEach(t=>{ tally[t]=(tally[t]||0)+1; });
+  const maxVotes=Math.max(0,...Object.values(tally));
+  const topVoted=Object.keys(tally).filter(p=>tally[p]===maxVotes && maxVotes>0);
+  /* Three outcomes:
+     caught  — imposter alone on the most votes: imposter 0
+     tied    — imposter shares the most votes:   imposter +2
+     escaped — imposter doesn't top the vote:    imposter +5
+     Correct voters always get +2 whatever happens. */
+  let outcome='escaped';
+  if(topVoted.includes(r.impPid)) outcome = topVoted.length===1 ? 'caught' : 'tied';
+  return {tally, outcome, caught:outcome==='caught'};
+}
+async function applyVoteScores(r, pids){
+  const {outcome}=computeVoteResults(r, pids);
+  const impPts = outcome==='escaped' ? 5 : outcome==='tied' ? 2 : 0;
+  const updates={};
+  pids.forEach(pid=>{
+    let d=0;
+    if(pid===r.impPid){ d = impPts; }
+    else if((r.votes||{})[pid]===r.impPid){ d = 2; }
+    if(d) updates[pid]=(game.scores?.[pid]||0)+d;
+  });
+  for(const [pid,v] of Object.entries(updates)){
+    await db.ref('games/'+CODE+'/scores/'+pid).set(v);
+  }
+}
+
+/* Host advances phases automatically as everyone finishes */
+async function hostAutoAdvance(){
+  if(!IS_HOST || !game?.round) return;
+  const r=game.round, pids=Object.keys(game.players||{});
+  if(r.mode==='odd'){
+    if(r.phase==='answer' && pids.every(p=>(r.answers||{})[p])){
+      await db.ref('games/'+CODE+'/round/phase').set('discuss');
+    }
+  }
+  if(r.mode==='artist' && r.phase==='draw' && (r.turnIdx||0)>=r.totalTurns){
+    await db.ref('games/'+CODE+'/round/phase').set('vote');
+  }
+  if(r.mode==='seconds' && r.phase==='play' && (r.turnIdx||0)>=(r.order||[]).length){
+    await db.ref('games/'+CODE+'/round/phase').set('vote');
+  }
+  if(r.phase==='vote' && pids.every(p=>(r.votes||{})[p]) && !r.scored){
+    await db.ref('games/'+CODE+'/round/scored').set(true);
+    await applyVoteScores(r, pids);
+    await db.ref('games/'+CODE+'/round/phase').set('reveal');
+  }
+}
+async function hostStartVote(){
+  if(!IS_HOST) return;
+  await db.ref('games/'+CODE+'/round/phase').set('vote');
+  haptic('medium');
+}
+
+/* ═══════════════ Renderers ═══════════════ */
+function playerNameOf(pid){ return game?.players?.[pid]?.name||'?'; }
+
+function renderVotePanel(r, pids, players){
+  $('votePanel').style.display='block';
+  const myIds=myPlayerIds();
+  $('voteRows').innerHTML='';
+  myIds.forEach(me=>{
+    const row=document.createElement('div'); row.className='voterow';
+    const done=(r.votes||{})[me];
+    const nm=document.createElement('div'); nm.className='vn';
+    nm.textContent=playerNameOf(me)+(done?' — vote locked in ✅':' — pick the imposter:');
+    row.appendChild(nm);
+    pids.filter(p=>p!==me).forEach(p=>{
+      const b=document.createElement('button');
+      b.textContent=playerNameOf(p);
+      if(done===p) b.classList.add('picked');
+      if(!done) b.onclick=()=>castVote(me,p);
+      else b.disabled=true;
+      row.appendChild(b);
+    });
+    $('voteRows').appendChild(row);
+  });
+  const voted=Object.keys(r.votes||{}).length;
+  $('voteProgress').textContent=voted+'/'+pids.length+' votes in';
+}
+
+function renderResultPanel(r, pids, players){
+  $('resultPanel').style.display='block';
+  const {tally, outcome}=computeVoteResults(r, pids);
+  const impName=playerNameOf(r.impPid);
+  const verdict = outcome==='caught' ? 'CAUGHT! Correct voters +2'
+    : outcome==='tied' ? 'TIED VOTE! '+esc(impName)+' scrapes +2 · correct voters +2'
+    : 'GOT AWAY WITH IT! '+esc(impName)+' +5 · correct voters +2';
+  let html='<div class="revealbox">';
+  html+='<div class="muted">The imposter was</div><div class="w">'+esc(impName)+'</div>';
+  html+='<div class="imps">'+verdict+'</div></div>';
+  /* Caught or tied? The imposter gets one shot at guessing for +3 (not in Odd One Out — no word to guess) */
+  if(outcome!=='escaped' && r.mode!=='odd' && r.guessOn!==false){
+    const done=(r.impGuesses||{})[r.impPid];
+    if(done){
+      html+=guessResultHTML(r);
+    }else if(myPlayerIds().includes(r.impPid)){
+      const prompt = r.mode==='seconds'
+        ? 'Guess the exact target in seconds (e.g. 3.5) for +3.'
+        : 'You were caught — but guess the word for +3. Close spelling counts.';
+      html+=guessBoxHTML(r.impPid, prompt);
+    }else{
+      html+='<p class="muted">Waiting to see if '+esc(impName)+' can guess it for +3...</p>';
+    }
+  }
+  if(r.mode==='odd'){
+    html+='<div class="qcard"><div class="qname">Everyone else was asked</div><div class="qtext">'+esc(r.qMain)+'</div></div>';
+    html+='<div class="qcard"><div class="qname">'+esc(impName)+' was secretly asked</div><div class="qtext">'+esc(r.qImp)+'</div></div>';
+  }
+  if(r.mode==='artist'){
+    html+='<div class="qcard"><div class="qname">You were all drawing</div><div class="qtext">'+esc(r.word)+' ('+esc(r.category)+')</div></div>';
+  }
+  if(r.mode==='seconds'){
+    html+='<div class="qcard"><div class="qname">The target was</div><div class="qtext">'+(r.target/1000)+' seconds</div>'+
+          '<div class="muted">'+esc(impName)+' only knew: between '+(r.impLow/1000)+'s and '+(r.impHigh/1000)+'s</div></div>';
+    const rows=pids.map(p=>({p, t:(r.times||{})[p]}))
+      .filter(x=>x.t!=null)
+      .sort((a,b)=>Math.abs(a.t-r.target)-Math.abs(b.t-r.target));
+    rows.forEach((x,i)=>{
+      const diff=((x.t-r.target)/1000).toFixed(2);
+      html+='<div class="timesrow"><span>'+(i===0?'🏆 ':'')+esc(playerNameOf(x.p))+(x.p===r.impPid?' 🕵️':'')+'</span>'+
+            '<span>'+(x.t/1000).toFixed(2)+'s ('+(diff>0?'+':'')+diff+')</span></div>';
+    });
+  }
+  html+='<div class="muted" style="margin-top:8px">Votes: '+
+    Object.entries(tally).map(([p,n])=>esc(playerNameOf(p))+' × '+n).join(' · ')+'</div>';
+  safeSetHTML($('resultContent'), html);
+}
+
+function renderOddPanel(r, pids, players){
+  $('oddPanel').style.display='block';
+  const myIds=myPlayerIds();
+  let html='';
+  if(r.phase==='answer'){
+    myIds.forEach(pid=>{
+      const q=(pid===r.impPid)? r.qImp : r.qMain;
+      const done=(r.answers||{})[pid];
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">'+esc(playerNameOf(pid))+'\u2019s question</div>'+
+        '<div class="qtext">'+esc(q)+'</div>';
+      if(done){ html+='<div class="muted" style="margin-top:6px">Answer locked in ✅</div>'; }
+      else{
+        html+='<textarea id="ans-'+pid+'" rows="2" maxlength="80" placeholder="Type your answer..."></textarea>'+
+          '<button class="btn primary" style="margin-top:6px" onclick="submitOddAnswer(\''+pid+'\')">Lock In Answer</button>';
+      }
+      html+='</div>';
+    });
+    html+='<p class="muted">'+Object.keys(r.answers||{}).length+'/'+pids.length+' answered. Don\u2019t say your question out loud!</p>';
+  }
+  if(r.phase==='discuss' || r.phase==='vote' || r.phase==='reveal'){
+    html+='<div class="qcard"><div class="qname">The question was</div><div class="qtext">'+esc(r.qMain)+'</div>'+
+      '<div class="muted" style="margin-top:4px">...but one of you was answering something slightly different.</div></div>';
+    const order=pids.slice().sort((a,b)=>playerNameOf(a).localeCompare(playerNameOf(b)));
+    order.forEach(pid=>{
+      html+='<div class="answerrow"><div class="an">'+esc(playerNameOf(pid))+'</div>'+
+        '<div class="at">'+esc((r.answers||{})[pid]||'—')+'</div></div>';
+    });
+    if(r.phase==='discuss' && IS_HOST){
+      html+='<button class="btn primary big" style="margin-top:8px" onclick="hostStartVote()">Start the Vote</button>';
+    }
+    if(r.phase==='discuss' && !IS_HOST){
+      html+='<p class="muted">Discuss! The host starts the vote when you\u2019re ready.</p>';
+    }
+  }
+  safeSetHTML($('oddContent'), html);
+}
+
+function renderSecondsPanel(){
+  const r=game?.round; if(!r||r.mode!=='seconds') return;
+  const pids2=r.order||[];
+  $('secondsPanel').style.display='block';
+  if(r.phase!=='play'){ $('secTurn').textContent='All times are in!'; $('secContent').innerHTML=''; return; }
+  const idx=r.turnIdx||0;
+  const current=pids2[idx];
+  const myTurn=current && myPlayerIds().includes(current);
+  $('secTurn').textContent=current ? (playerNameOf(current)+'\u2019s turn ('+(idx+1)+' of '+pids2.length+')') : '';
+  $('secTurn').classList.toggle('me', !!myTurn);
+  if(myTurn){
+    const running=secRunning && secRunning.pid===current;
+    $('secContent').innerHTML='<button class="btn '+(running?'danger':'primary')+' bigstop" onclick="secPress(\''+current+'\')">'+
+      (running?'⏹ STOP':'▶ START')+'</button>'+
+      '<p class="muted" style="text-align:center">'+(running?'Counting... stop when you think you\u2019ve hit it. No peeking anywhere!':'Press start, count your seconds in your head, press stop.')+'</p>';
+  }else{
+    $('secContent').innerHTML='<p class="muted" style="text-align:center">Watch them sweat. No counting out loud!</p>';
+  }
+}
+
+/* ═══════════════ Fake Artist canvas ═══════════════ */
+let artDrawing=null; // in-progress stroke points
+let artStrokeCount=-1;
+const ART_HUES=[260,10,200,120,320,40,180,0];
+
+function artRedraw(){
+  const cv=$('artCanvas'); if(!cv) return;
+  const ctx2=cv.getContext('2d');
+  ctx2.clearRect(0,0,cv.width,cv.height);
+  const strokes=game?.round?.strokes||{};
+  Object.keys(strokes).sort((a,b)=>+a-+b).forEach(k=>{
+    drawStroke(ctx2, strokes[k]);
+  });
+  if(artDrawing && artDrawing.pts.length>1){
+    drawStroke(ctx2, {pts:artDrawing.pts.map(p=>p.join(',')).join(';'), hue:artDrawing.hue});
+  }
+}
+function drawStroke(ctx2, st){
+  const pts=st.pts.split(';').map(p=>p.split(',').map(Number));
+  if(pts.length<2) return;
+  ctx2.strokeStyle='hsl('+(st.hue||260)+',75%,45%)';
+  ctx2.lineWidth=5; ctx2.lineCap='round'; ctx2.lineJoin='round';
+  ctx2.beginPath();
+  ctx2.moveTo(pts[0][0], pts[0][1]);
+  for(let i=1;i<pts.length;i++) ctx2.lineTo(pts[i][0], pts[i][1]);
+  ctx2.stroke();
+}
+function canvasPos(cv, e){
+  const rect=cv.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e;
+  return [Math.round((t.clientX-rect.left)/rect.width*cv.width),
+          Math.round((t.clientY-rect.top)/rect.height*cv.height)];
+}
+function initArtCanvas(){
+  const cv=$('artCanvas'); if(!cv || cv._wired) return;
+  cv._wired=true;
+  const myTurnNow=()=>{
+    const r=game?.round;
+    if(!r || r.mode!=='artist' || r.phase!=='draw') return null;
+    const current=(r.order||[])[ (r.turnIdx||0) % (r.order||[1]).length ];
+    return myPlayerIds().includes(current) ? current : null;
+  };
+  const start=e=>{
+    const pid=myTurnNow(); if(!pid || artDrawing) return;
+    const orderIdx=(game.round.order||[]).indexOf(pid);
+    artDrawing={pid, hue:ART_HUES[orderIdx % ART_HUES.length], pts:[canvasPos(cv,e)]};
+    if(e.cancelable) e.preventDefault();
+  };
+  const move=e=>{
+    if(!artDrawing) return;
+    const p=canvasPos(cv,e);
+    const last=artDrawing.pts[artDrawing.pts.length-1];
+    if(Math.abs(p[0]-last[0])+Math.abs(p[1]-last[1])>4 && artDrawing.pts.length<300) artDrawing.pts.push(p);
+    artRedraw();
+    if(e.cancelable) e.preventDefault();
+  };
+  const end=async ()=>{
+    if(!artDrawing) return;
+    const st=artDrawing; artDrawing=null;
+    if(st.pts.length<2){ artRedraw(); return; } // ignore taps
+    const idx=(game.round.turnIdx||0);
+    await db.ref('games/'+CODE+'/round/strokes/'+idx).set({
+      pid:st.pid, hue:st.hue, pts:st.pts.map(p=>p.join(',')).join(';')
+    });
+    await db.ref('games/'+CODE+'/round/turnIdx').set(idx+1);
+    haptic('medium');
+  };
+  cv.addEventListener('touchstart', start, {passive:false});
+  cv.addEventListener('touchmove', move, {passive:false});
+  cv.addEventListener('touchend', end);
+  cv.addEventListener('mousedown', start);
+  cv.addEventListener('mousemove', move);
+  cv.addEventListener('mouseup', end);
+  cv.addEventListener('mouseleave', end);
+}
+function renderArtistPanel(r, pids, players){
+  $('artistPanel').style.display='block';
+  initArtCanvas();
+  if(r.phase==='draw'){
+    const current=(r.order||[])[(r.turnIdx||0) % (r.order||[1]).length];
+    const myTurn=current && myPlayerIds().includes(current);
+    const roundNo=Math.floor((r.turnIdx||0)/(r.order||[1]).length)+1;
+    $('artTurn').textContent='🎨 '+playerNameOf(current)+'\u2019s stroke — pass '+roundNo+' of 2 ('+((r.turnIdx||0)+1)+'/'+r.totalTurns+')';
+    $('artTurn').classList.toggle('me', !!myTurn);
+    $('artHint').textContent = myTurn ? 'Your turn! Draw ONE continuous line — lift your finger and it\u2019s locked in.' : 'One continuous stroke per turn. Category: '+r.category;
+  }else{
+    $('artTurn').textContent='🎨 The masterpiece is complete';
+    $('artTurn').classList.remove('me');
+    $('artHint').textContent='Category: '+r.category;
+  }
+  artRedraw();
+}
+
 /* ================= RENDER ================= */
 function showScreen(id){
   ['scrHome','scrLobby','scrPlay'].forEach(s=>$(s).classList.toggle('show', s===id));
@@ -1345,26 +1989,53 @@ function renderPlay(){
   const players=game.players||{};
   const pids=Object.keys(players).sort((a,b)=>players[a].joinedAt-players[b].joinedAt);
 
+  const mode=r.mode||'word';
   $('playRound').textContent='Round '+(r.num||1);
-  $('playCat').textContent=r.category||'';
-  $('playMode').textContent=r.impMode==='undercover'?'🥸 Undercover':'🕵️ Classic';
+  $('playCat').textContent = mode==='word' ? (r.category||'') : (MODE_NAMES[mode]||'');
+  $('playMode').textContent = mode==='word' ? (r.impMode==='undercover'?'🥸 Undercover':'🕵️ Classic')
+                            : (mode==='artist' ? (r.category||'') : '');
 
-  /* my secrets — one big card per player on this phone, each hold-to-peek */
+  /* hide everything mode-specific, then show what this mode needs */
+  ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel'].forEach(id=>$(id).style.display='none');
+  document.querySelector('#secretCards').parentElement.style.display = (mode==='word'||mode==='artist'||mode==='seconds') ? 'block' : 'none';
+
   const myIds=myPlayerIds();
-  buildSecretCards(myIds, r, players);
+  if(mode==='word'||mode==='artist'||mode==='seconds') buildSecretCards(myIds, r, players);
+  /* Word Imposter (classic): imposters can gamble a word guess for +3 */
+  if(mode==='word' && r.impMode!=='undercover' && r.guessOn!==false){
+    let gh='';
+    myIds.forEach(pid=>{
+      const a=r.assignments?.[pid];
+      if(!a || !a.imp) return;
+      const done=(r.impGuesses||{})[pid];
+      if(done){
+        gh+='<div class="answerrow"><div class="an">'+esc(playerNameOf(pid))+'\u2019s guess</div>'+
+            '<div class="at">'+(done.correct?'🎯 "'+esc(done.text)+'" — CORRECT! +3':'❌ "'+esc(done.text)+'" — wrong')+'</div></div>';
+      }else{
+        gh+=guessBoxHTML(pid, 'Think you know the word? One guess only — close spelling counts.');
+      }
+    });
+    safeSetHTML($('wordGuessWrap'), gh);
+  }else{
+    $('wordGuessWrap').innerHTML='';
+  }
+  if(mode==='odd') renderOddPanel(r, pids, players);
+  if(mode==='artist') renderArtistPanel(r, pids, players);
+  if(mode==='seconds') renderSecondsPanel();
+  if(mode!=='word' && r.phase==='vote') renderVotePanel(r, pids, players);
+  if(mode!=='word' && r.phase==='reveal') renderResultPanel(r, pids, players);
+  if(IS_HOST) hostAutoAdvance();
 
-  /* reveal */
-  if(r.revealed){
+  /* reveal (Word Imposter only) */
+  if(mode==='word' && r.revealed){
     $('revealPanel').style.display='block';
     $('revealWord').textContent=r.word||'';
     const impNames=(r.imposters||[]).map(pid=>players[pid]?.name||'?').join(' & ');
-    $('revealImps').textContent='Imposter'+((r.imposters||[]).length>1?'s':'')+': '+impNames;
-  }else{
-    $('revealPanel').style.display='none';
+    $('revealImps').innerHTML='Imposter'+((r.imposters||[]).length>1?'s':'')+': '+esc(impNames)+guessResultHTML(r);
   }
 
-  /* questions */
-  if(r.qSchedule){
+  /* questions (Word Imposter only) */
+  if(mode==='word' && r.qSchedule){
     $('qPanel').style.display='block';
     $('qHostBtns').style.display=IS_HOST?'flex':'none';
     const idx=r.qIndex||0;
@@ -1413,7 +2084,7 @@ function renderPlay(){
   /* host controls */
   $('hostControls').style.display=IS_HOST?'block':'none';
   if(IS_HOST){
-    $('revealBtn').style.display = r.revealed ? 'none' : '';
+    $('revealBtn').style.display = (mode==='word' && !r.revealed) ? '' : 'none';
     if($('hostRulesWrap').style.display!=='none') syncSettingsUI();
   }
 
@@ -1514,8 +2185,27 @@ function cueOnce(key, fn){
    coloured so two people sharing a device can't mix them up. */
 const CARD_HUES=[255, 165, 30, 130, 320, 200]; // purple, blue-ish, orange, green, pink, teal
 let cardsSig=null;
+function secretFor(pid, r){
+  const mode=r.mode||'word';
+  if(mode==='word'){
+    const mine=r.assignments?.[pid];
+    return {word:mine?mine.display:'—', sub:mine?(mine.sub||''):'',
+            imp:!!(mine && mine.imp && r.impMode!=='undercover')};
+  }
+  if(mode==='artist'){
+    return pid===r.impPid
+      ? {word:'FAKE ARTIST', sub:'You don\u2019t know the word. Category: '+r.category+'. Blend in!', imp:true}
+      : {word:r.word, sub:'Category: '+r.category, imp:false};
+  }
+  if(mode==='seconds'){
+    return pid===r.impPid
+      ? {word:'???', sub:'Imposter! It\u2019s somewhere between '+(r.impLow/1000)+'s and '+(r.impHigh/1000)+'s', imp:true}
+      : {word:(r.target/1000)+' SECONDS', sub:'Time exactly this, without counting out loud', imp:false};
+  }
+  return {word:'—', sub:'', imp:false};
+}
 function buildSecretCards(myIds, r, players){
-  const sig=(r.num||0)+':'+r.impMode+':'+myIds.join(',');
+  const sig=(r.num||0)+':'+(r.mode||'word')+':'+r.impMode+':'+myIds.join(',');
   const wrap=$('secretCards');
   if(sig===cardsSig && wrap.children.length===myIds.length){
     // Same round + same players: leave the cards alone (someone may be mid-hold)
@@ -1524,15 +2214,15 @@ function buildSecretCards(myIds, r, players){
   cardsSig=sig;
   wrap.innerHTML='';
   myIds.forEach((pid,i)=>{
-    const mine=r.assignments?.[pid];
+    const mine=secretFor(pid, r);
     const card=document.createElement('div');
     card.className='secret';
     const hue=CARD_HUES[i % CARD_HUES.length];
     card.style.background=`linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue+40)%360},80%,55%))`;
     card._pname=players[pid]?.name||'?';
-    card._word=mine?mine.display:'—';
-    card._sub=mine?(mine.sub||''):'';
-    card._imp=!!(mine && mine.imp && r.impMode!=='undercover');
+    card._word=mine.word;
+    card._sub=mine.sub;
+    card._imp=mine.imp;
     card._hue=hue;
     resetOneCard(card, myIds.length>1);
     const down=e=>{ showOneCard(card); if(e.cancelable) e.preventDefault(); };
