@@ -1314,7 +1314,7 @@ function syncSettingsUI(){
   const gm=st.gameMode||'word';
   $('gameModeHint').textContent=MODE_HINTS[gm]||'';
   $('sOddTypeField').style.display = gm==='odd' ? '' : 'none';
-  $('sDiffField').style.display = (gm==='word'||gm==='artist') ? '' : 'none';
+  $('sDiffField').style.display = gm==='word' ? '' : 'none';
   $('sCatField').style.display = (gm==='word'||gm==='artist') ? '' : 'none';
   $('sImpModeField').style.display = gm==='word' ? '' : 'none';
   $('sHintField').style.display = (gm==='word' && st.impMode==='classic') ? '' : 'none';
@@ -1322,10 +1322,11 @@ function syncSettingsUI(){
   $('sImpRow').style.display = gm==='word' ? '' : 'none';
   $('sQRoundsField').style.display = (gm==='word' && st.playStyle==='questions') ? '' : 'none';
   $('sGuessField').style.display = gm!=='odd' ? '' : 'none';
-  // category options for current difficulty
+  // category options: drawable bank for Fake Artist, word banks otherwise
   const sel=$('sCat'); const prev=st.category||'__random__';
   sel.innerHTML='<option value="__random__">🎲 Random</option>';
-  Object.keys(activeBank(st.diff||'easy')).forEach(c=>{
+  const catSource = gm==='artist' ? ART_BANK : activeBank(st.diff||'easy');
+  Object.keys(catSource).forEach(c=>{
     const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o);
   });
   sel.value=[...sel.options].some(o=>o.value===prev)?prev:'__random__';
@@ -1510,6 +1511,39 @@ function toggleRules(){
 }
 
 
+/* ================= FAKE ARTIST BANK =================
+   Every word here is a physical thing you can actually draw. */
+const ART_BANK={
+"Animals":["Dog","Cat","Elephant","Giraffe","Lion","Tiger","Zebra","Monkey","Penguin","Crab","Horse","Cow","Pig","Sheep","Chicken","Duck","Owl","Eagle","Parrot","Snake","Frog","Turtle","Rabbit","Fox","Wolf","Bear","Deer","Squirrel","Hedgehog","Mouse","Kangaroo","Koala","Panda","Crocodile","Hippo","Rhino","Camel","Flamingo","Peacock","Spider","Bee","Butterfly","Snail","Bat"],
+"Under the Sea":["Shark","Whale","Dolphin","Octopus","Squid","Jellyfish","Starfish","Seahorse","Lobster","Shrimp","Stingray","Eel","Sea Turtle","Pufferfish","Swordfish","Seal","Walrus","Anchor","Shipwreck","Treasure Chest","Submarine","Scuba Diver","Mermaid","Message in a Bottle","Fishing Rod","Seaweed","Coral","Pearl in a Shell","Crab Claw","Lighthouse"],
+"Dinosaurs & Monsters":["T-Rex","Triceratops","Stegosaurus","Diplodocus","Pterodactyl","Dinosaur Egg","Dinosaur Skeleton","Woolly Mammoth","Dragon","Unicorn","Vampire","Werewolf","Zombie","Ghost","Witch on a Broomstick","Wizard","Genie Lamp","Troll","Alien","Robot","Frankenstein's Monster","Mummy","Skeleton","Cyclops","Loch Ness Monster"],
+"Food & Drink":["Pizza Slice","Burger","Hot Dog","Bowl of Spaghetti","Taco","Sandwich","Fried Egg","Bacon Rashers","Sausages","Chips","Popcorn Bucket","Ice Cream Cone","Birthday Cake","Cupcake","Doughnut","Cookie","Croissant","Pretzel","Pancake Stack","Cheese Wedge","Baguette","Sushi Roll","Chicken Drumstick","Fish and Chips","Bowl of Soup","Lollipop","Candy Cane","Chocolate Bar","Cup of Tea","Coffee Cup","Milkshake","Wine Glass","Beer Pint","Teapot","Bottle of Ketchup","Tin of Beans","Watermelon Slice","Pineapple","Banana","Strawberry"],
+"Fruit & Veg":["Apple","Pear","Orange","Lemon","Cherry","Grapes","Peach","Coconut","Kiwi","Mango","Carrot","Potato","Onion","Broccoli","Cauliflower","Mushroom","Tomato","Cucumber","Sweetcorn Cob","Pumpkin","Aubergine","Pepper","Peas in a Pod","Leek","Beetroot","Radish","Chilli","Avocado","Garlic Bulb","Cabbage"],
+"Around the House":["Sofa","Armchair","Lamp","Television","Bookshelf","Rug","Curtains","Bed","Pillow","Wardrobe","Mirror","Alarm Clock","Desk","Fridge","Oven","Microwave","Kettle","Toaster","Washing Machine","Iron","Vacuum Cleaner","Broom","Mop and Bucket","Bin","Bathtub","Toilet","Ladder","Candle","Photo Frame","Door","Window","Staircase","Chimney","Letterbox","House Key","Doorbell","Radiator","Light Switch","Plant Pot","Grandfather Clock"],
+"In the Kitchen":["Frying Pan","Saucepan","Whisk","Spatula","Wooden Spoon","Rolling Pin","Chopping Board","Knife","Fork","Spoon","Plate","Bowl","Mug","Grater","Sieve","Colander","Measuring Jug","Kitchen Scales","Blender","Corkscrew","Bottle Opener","Tin Opener","Oven Gloves","Apron","Egg Cup","Egg Timer","Salt and Pepper Shakers","Ice Cube Tray","Pizza Cutter","Skewer"],
+"In the Bathroom":["Toothbrush","Toothpaste Tube","Bar of Soap","Shampoo Bottle","Rubber Duck","Towel","Toilet Roll","Toilet Brush","Hairdryer","Hairbrush","Comb","Razor","Shower Head","Bath Taps","Sponge","Bathroom Scales","Plunger","Tweezers","Nail Clippers","Cotton Buds","Perfume Bottle","Lipstick","Shower Cap","Bath Bomb","Dressing Gown"],
+"In the Garden":["Lawnmower","Watering Can","Garden Hose","Spade","Rake","Trowel","Wheelbarrow","Gardening Gloves","Flower Pot","Sunflower","Rose","Daffodil","Tree","Bush","Hedge","Garden Gnome","Bird Feeder","Bird Bath","Greenhouse","Shed","Fence","Gate","Washing Line","Trampoline","Paddling Pool","Swing","Slide","Bench","Scarecrow","Beehive","Snail on a Leaf","Ladybird","Worm","Butterfly Net","Deckchair"],
+"Transport":["Car","Bus","Double Decker Bus","Train","Tram","Taxi","Bicycle","Motorbike","Scooter","Skateboard","Roller Skates","Lorry","Van","Ambulance","Fire Engine","Police Car","Tractor","Digger","Crane","Forklift","Aeroplane","Helicopter","Hot Air Balloon","Rocket","Boat","Ferry","Yacht","Canoe","Jet Ski","Cruise Ship","Cable Car","Sledge","Unicycle","Tank","Golf Buggy","Caravan","Monster Truck","Gondola","Rickshaw","Wheelchair"],
+"Clothes & Accessories":["T-shirt","Shirt","Jumper","Hoodie","Jacket","Dress","Skirt","Jeans","Shorts","Pyjamas","Socks","Trainers","Boots","Wellies","Flip Flops","Slippers","High Heels","Top Hat","Cap","Beanie","Scarf","Gloves","Mittens","Belt","Tie","Bow Tie","Watch","Ring","Necklace","Earrings","Glasses","Sunglasses","Backpack","Handbag","Umbrella","Crown","Swimming Trunks","Bikini","Onesie","Zip"],
+"Body Parts":["Eye","Ear","Nose","Mouth","Teeth","Tongue","Hand","Foot","Finger","Thumb","Toe","Arm","Leg","Knee","Elbow","Shoulder","Head","Hair","Beard","Moustache","Eyebrow","Skeleton Hand","Skull","Heart","Brain","Ribcage","Spine","Muscle Arm","Fingerprint","Footprint"],
+"Nature & Weather":["Mountain","Volcano","Waterfall","River","Lake","Island","Beach","Cave","Cliff","Forest","Palm Tree","Oak Tree","Cactus","Mushroom","Acorn","Pinecone","Leaf","Log Fire","Sun","Moon","Star","Cloud","Rainbow","Lightning Bolt","Raindrop","Snowflake","Snowman","Icicle","Tornado","Wave","Puddle","Shooting Star","Planet with Rings","Comet","Full Moon and Bats"],
+"Famous Landmarks":["Big Ben","Tower Bridge","London Eye","Stonehenge","Blackpool Tower","Eiffel Tower","Leaning Tower of Pisa","Colosseum","Windmill","Statue of Liberty","Golden Gate Bridge","Pyramids","The Sphinx","Sydney Opera House","Great Wall of China","Taj Mahal","Mount Fuji","Castle","Drawbridge","Lighthouse","Ferris Wheel","Rollercoaster","Fountain","Totem Pole","Igloo"],
+"Musical Instruments":["Guitar","Electric Guitar","Violin","Cello","Harp","Piano","Keyboard","Drums","Drum Kit","Trumpet","Trombone","Saxophone","Flute","Recorder","Clarinet","Bagpipes","Accordion","Harmonica","Banjo","Ukulele","Triangle","Tambourine","Maracas","Xylophone","Microphone","Headphones","Music Note","Gramophone","DJ Decks","Bell"],
+"Sports & Toys":["Football","Rugby Ball","Tennis Racket","Cricket Bat","Golf Club","Basketball Hoop","Dartboard","Snooker Table","Bowling Pin","Boxing Gloves","Trophy","Medal","Whistle","Stopwatch","Goal Net","Skis","Snowboard","Surfboard","Ice Skates","Fishing Rod","Kite","Teddy Bear","Rocking Horse","Toy Train","Building Blocks","Jigsaw Piece","Dice","Playing Card","Chess Piece","Spinning Top","Yo-Yo","Doll","Rubber Ring","Bucket and Spade","Balloon","Party Hat","Pinata","Magic Wand","Juggling Balls","Hula Hoop"],
+"Tools & DIY":["Hammer","Screwdriver","Drill","Saw","Spanner","Wrench","Pliers","Axe","Chisel","Tape Measure","Spirit Level","Paintbrush","Paint Roller","Paint Tin","Ladder","Toolbox","Nail","Screw","Nut and Bolt","Vice","Workbench","Safety Goggles","Hard Hat","Torch","Magnet","Chainsaw","Shovel","Pickaxe","Anvil","Padlock"]
+};
+
+let usedArtLocal={};
+function pickArtWord(st){
+  const cat=(st.category && st.category!=='__random__' && ART_BANK[st.category]) ? st.category : pick(Object.keys(ART_BANK));
+  usedArtLocal[cat]=usedArtLocal[cat]||new Set();
+  let fresh=ART_BANK[cat].filter(w=>!usedArtLocal[cat].has(w));
+  if(!fresh.length){ usedArtLocal[cat].clear(); fresh=ART_BANK[cat].slice(); }
+  const word=pick(fresh);
+  usedArtLocal[cat].add(word);
+  return {cat, word};
+}
+
 /* ═══════════════ GAME MODES: round dealing ═══════════════ */
 let usedPairsLocal={questions:new Set(), statements:new Set()};
 
@@ -1541,7 +1575,7 @@ function dealOddRound(pids, st, num){
 }
 
 function dealArtistRound(pids, st, num){
-  const {cat, word}=pickWordAndCategory(st);
+  const {cat, word}=pickArtWord(st);
   const impPid=pick(pids);
   const order=shuffle(pids.slice());
   return {mode:'artist', num, phase:'draw', guessOn:(st.guessOn!==false), category:cat, word, impPid,
@@ -1552,7 +1586,9 @@ function dealArtistRound(pids, st, num){
 function dealSecondsRound(pids, st, num){
   const target=(1+Math.floor(Math.random()*20))*500;         // 0.5s to 10s in halves
   const WIN=2500;                                            // imposter window width
-  const low=Math.max(500, Math.min(target-Math.floor(Math.random()*(WIN+1)), 10000-WIN));
+  /* window edges land on clean half-seconds, so the hint reads e.g. 5.5s-8s */
+  const offset=Math.floor(Math.random()*6)*500;              // 0 to 2.5s in halves
+  const low=Math.max(500, Math.min(target-offset, 10000-WIN));
   const impPid=pick(pids);
   return {mode:'seconds', num, phase:'play', guessOn:(st.guessOn!==false), target, impLow:low, impHigh:low+WIN,
           impPid, order:shuffle(pids.slice()), turnIdx:0, times:{},
@@ -1576,17 +1612,22 @@ async function castVote(voterPid, targetPid){
 
 /* Split Second blind timer (all local until Stop) */
 let secRunning=null; // {pid, startedAt}
+function sndSecStart(){ tone(700,0.1,0.4,'sine',0); tone(1050,0.12,0.4,'sine',0.11); haptic('heavy'); }
+function sndSecStop(){ tone(1050,0.1,0.4,'sine',0); tone(700,0.16,0.4,'sine',0.11); haptic('heavy'); setTimeout(()=>haptic('medium'),200); }
 function secPress(pid){
   if(!game?.round || game.round.mode!=='seconds') return;
   if(secRunning && secRunning.pid===pid){
     const ms=Date.now()-secRunning.startedAt;
     secRunning=null;
+    sndSecStop();
     db.ref('games/'+CODE+'/round/times/'+pid).set(ms);
+    db.ref('games/'+CODE+'/round/live').remove();
     db.ref('games/'+CODE+'/round/turnIdx').set((game.round.turnIdx||0)+1);
-    haptic('heavy');
   }else if(!secRunning){
+    hideAllSecretCards();   /* nothing secret on screen while everyone watches you time */
     secRunning={pid, startedAt:Date.now()};
-    haptic('medium');
+    sndSecStart();
+    db.ref('games/'+CODE+'/round/live').set(pid);
     renderSecondsPanel();
   }
 }
@@ -1668,6 +1709,10 @@ function computeVoteResults(r, pids){
   if(topVoted.includes(r.impPid)) outcome = topVoted.length===1 ? 'caught' : 'tied';
   return {tally, outcome, caught:outcome==='caught'};
 }
+function bangOn(ms, target){
+  /* "bang on" = matches the target at the precision shown on screen (0.01s) */
+  return ms!=null && Math.round(ms/10)===Math.round(target/10);
+}
 async function applyVoteScores(r, pids){
   const {outcome}=computeVoteResults(r, pids);
   const impPts = outcome==='escaped' ? 5 : outcome==='tied' ? 2 : 0;
@@ -1676,6 +1721,8 @@ async function applyVoteScores(r, pids){
     let d=0;
     if(pid===r.impPid){ d = impPts; }
     else if((r.votes||{})[pid]===r.impPid){ d = 2; }
+    /* Split Second: nail the target exactly for a +3 bonus (imposter included) */
+    if(r.mode==='seconds' && bangOn((r.times||{})[pid], r.target)) d += 3;
     if(d) updates[pid]=(game.scores?.[pid]||0)+d;
   });
   for(const [pid,v] of Object.entries(updates)){
@@ -1776,8 +1823,9 @@ function renderResultPanel(r, pids, players){
       .sort((a,b)=>Math.abs(a.t-r.target)-Math.abs(b.t-r.target));
     rows.forEach((x,i)=>{
       const diff=((x.t-r.target)/1000).toFixed(2);
-      html+='<div class="timesrow"><span>'+(i===0?'🏆 ':'')+esc(playerNameOf(x.p))+(x.p===r.impPid?' 🕵️':'')+'</span>'+
-            '<span>'+(x.t/1000).toFixed(2)+'s ('+(diff>0?'+':'')+diff+')</span></div>';
+      const exact=bangOn(x.t, r.target);
+      html+='<div class="timesrow"'+(exact?' style="border-color:#7b5cff;background:#efeaff"':'')+'><span>'+(i===0?'🏆 ':'')+esc(playerNameOf(x.p))+(x.p===r.impPid?' 🕵️':'')+'</span>'+
+            '<span>'+(x.t/1000).toFixed(2)+'s '+(exact?'🎯 BANG ON! +3':'('+(diff>0?'+':'')+diff+')')+'</span></div>';
     });
   }
   html+='<div class="muted" style="margin-top:8px">Votes: '+
@@ -1838,7 +1886,10 @@ function renderSecondsPanel(){
       (running?'⏹ STOP':'▶ START')+'</button>'+
       '<p class="muted" style="text-align:center">'+(running?'Counting... stop when you think you\u2019ve hit it. No peeking anywhere!':'Press start, count your seconds in your head, press stop.')+'</p>';
   }else{
-    $('secContent').innerHTML='<p class="muted" style="text-align:center">Watch them sweat. No counting out loud!</p>';
+    const live=r.live && r.live===current;
+    $('secContent').innerHTML = live
+      ? '<div class="turnbanner me" style="margin:0">⏱ '+esc(playerNameOf(current))+'\u2019s timer is RUNNING...</div>'
+      : '<p class="muted" style="text-align:center">Watch them sweat. No counting out loud!</p>';
   }
 }
 
@@ -2252,7 +2303,22 @@ function showOneCard(card){
     '<div class="word">'+esc(card._word)+'</div>'+
     (card._sub?'<div class="sub">'+esc(card._sub)+'</div>':'');
   haptic(card._imp?'heavy':'medium');
+  /* safety net: never stay open longer than 6s even if the release event is lost */
+  clearTimeout(card._auto);
+  card._auto=setTimeout(()=>hideAllSecretCards(), 6000);
 }
+function hideAllSecretCards(){
+  document.querySelectorAll('#secretCards .secret.revealing').forEach(c=>{
+    clearTimeout(c._auto);
+    resetOneCard(c, $('secretCards').children.length>1);
+  });
+}
+/* if a touch ends anywhere — scroll, gesture, finger sliding off — cards close */
+document.addEventListener('touchend', hideAllSecretCards, true);
+document.addEventListener('touchcancel', hideAllSecretCards, true);
+document.addEventListener('mouseup', hideAllSecretCards, true);
+window.addEventListener('blur', hideAllSecretCards);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) hideAllSecretCards(); });
 </script>
 </body>
 </html>
