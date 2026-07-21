@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>🎉 Imposter Party Online</title>
+<meta name="theme-color" content="#7b5cff">
+<style>
+  :root{
+    --bg:linear-gradient(180deg,#f7f3ff 0%,#e9f7ff 100%);
+    --panel:#ffffffcc; --txt:#111; --muted:#666;
+    --accent:#7b5cff; --accent2:#2ec5ff;
+    --pad:14px; --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt);background:var(--bg);font-size:16px;
+    min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+  }
+  header{padding:12px var(--pad);display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:32px;height:32px;border-radius:10px;background:radial-gradient(circle at 30% 30%,#ffb86b,#ff6bcb 60%,#7b5cff 100%);box-shadow:0 6px 18px rgba(123,92,255,.35)}
+  .title{font-weight:900;letter-spacing:.3px;font-size:17px}
+  main{padding:0 var(--pad) max(calc(env(safe-area-inset-bottom) + 24px),24px);max-width:640px;margin:0 auto;width:100%}
+  .panel{background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border-radius:var(--radius);padding:var(--pad);box-shadow:0 6px 22px rgba(0,0,0,.06);
+    border:1px solid #ece9ff;margin-bottom:10px}
+  .panel h3{margin:0 0 8px 0}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .muted{color:var(--muted);font-size:13px}
+  .btn{appearance:none;border:none;border-radius:12px;padding:12px 14px;font-weight:800;font-size:15px;letter-spacing:.2px;white-space:nowrap;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 8px 18px rgba(43,116,255,.15)}
+  .btn.secondary{background:#fff;color:#333;border:1px solid #e6e6f4}
+  .btn.danger{background:#ff5b7a;color:#fff;border:1px solid #ff8ea6}
+  .btn.ghost{background:transparent;border:1px dashed #d7d2ff;color:#5a37ff}
+  .btn.big{width:100%;padding:16px;font-size:18px}
+  .btn:disabled{opacity:.5;pointer-events:none}
+  input.text{width:100%;border:1px solid #e4e0ff;border-radius:12px;padding:14px;font-size:17px;background:#fff;color:#111}
+  input.code{text-transform:uppercase;letter-spacing:8px;font-weight:900;text-align:center;font-size:24px}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{appearance:none;border:1px solid #e6e6f4;background:#fff;color:#444;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer}
+  .seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .field label{font-size:13px;font-weight:800;color:#444}
+  .field select,.field input[type=number]{padding:10px;border:1px solid #e4e0ff;border-radius:10px;font-size:15px;background:#fff}
+  .pill{background:#efeaff;color:#5a37ff;padding:6px 10px;border-radius:999px;font-weight:800;display:inline-block}
+  .pill.alt{background:#e3f6ff;color:#0a86c2}
+  .gamecode{font-size:clamp(40px,14vw,64px);font-weight:1000;letter-spacing:12px;text-align:center;color:#5a37ff;margin:6px 0}
+  .playerchips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:#fff;border:1px solid #e6e6f4;border-radius:999px;padding:8px 14px;font-weight:800;display:flex;align-items:center;gap:6px}
+  .chip.you{border-color:#7b5cff;background:#efeaff;color:#5a37ff}
+  .chip .kick{color:#ff5b7a;font-weight:900;cursor:pointer;padding:0 2px}
+
+  .secret{
+    position:relative;border-radius:16px;min-height:170px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;gap:8px;padding:18px;
+    background:linear-gradient(135deg,#5a37ff,#2ec5ff);color:#fff;cursor:pointer;
+    box-shadow:0 10px 24px rgba(90,55,255,.3);user-select:none;-webkit-user-select:none;
+  }
+  .secret .label{font-weight:900;font-size:14px;opacity:.9;text-transform:uppercase;letter-spacing:1px}
+  .secret .hold{font-weight:800;font-size:17px}
+  .secret.revealing{background:linear-gradient(180deg,#fff,#ece8ff);color:#111;border:1px solid #d7d2ff}
+  .secret .word{font-weight:1000;font-size:clamp(30px,9vw,52px);text-transform:uppercase;line-height:1.05;word-break:break-word}
+  .secret .sub{font-weight:800;color:#5a37ff}
+  .secret.imp .word{color:#d0244b}
+
+  .ask-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    background:linear-gradient(180deg,#fff,#ece8ff);border:1px solid #d7d2ff;border-radius:14px;
+    padding:18px 14px;margin:10px 0;text-align:center;box-shadow:0 2px 0 #c9c3ff,0 10px 18px rgba(123,92,255,.08)}
+  .ask-card .asker{font-weight:1000;font-size:clamp(22px,6vw,32px)}
+  .ask-card .arrow{font-size:16px;color:#5a37ff;font-weight:900}
+  .ask-card .askee{font-weight:1000;font-size:clamp(22px,6vw,32px);color:#5a37ff}
+  .ask-card.me{outline:3px solid #2ec5ff;box-shadow:0 0 0 6px rgba(46,197,255,.18)}
+
+  .scorerow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;
+    border:1px solid #e6e6f4;border-radius:12px;padding:8px 12px;margin-bottom:6px}
+  .scorerow .nm{font-weight:900}
+  .scorerow .pts{font-weight:900;color:#5a37ff;min-width:52px;text-align:right}
+  .scorerow .btns{display:flex;gap:4px}
+  .scorerow .btns button{appearance:none;border:1px solid #e6e6f4;background:#fafaff;border-radius:8px;
+    padding:6px 8px;font-weight:900;font-size:13px;cursor:pointer}
+
+  .timer-chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6e6f4;
+    border-radius:999px;padding:6px 12px;font-weight:900;color:#333}
+  .timer-chip.hot{background:#ffe9ee;border-color:#ffb9c8;color:#d0244b;animation:pulse .8s infinite}
+  @keyframes pulse{50%{transform:scale(1.04)}}
+
+  .revealbox{background:#fff;border:2px solid #ffb9c8;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px}
+  .revealbox .w{font-weight:1000;font-size:clamp(26px,8vw,40px);text-transform:uppercase}
+  .revealbox .imps{font-weight:900;color:#d0244b;margin-top:4px}
+
+  .screen{display:none}
+  .screen.show{display:block}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 16px);
+    background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-weight:800;font-size:14px;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:1200}
+  .toast.show{opacity:1}
+  .setuperr{background:#fff3f5;border:1px solid #ffb9c8;border-radius:12px;padding:12px;color:#a01535;font-weight:700;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online</div></div>
+  <div id="hdrRight"></div>
+</header>
+<main>
+
+  <!-- HOME -->
+  <section id="scrHome" class="screen show">
+    <section class="panel" id="setupWarning" style="display:none">
+      <div class="setuperr">⚠️ Firebase isn't configured yet. Open this file and paste your Firebase config where it says PASTE YOUR FIREBASE CONFIG. See the setup guide.</div>
+    </section>
+    <section class="panel">
+      <h3>Join a game</h3>
+      <div class="field"><label>Your name</label><input class="text" id="joinName" maxlength="14" placeholder="e.g. Josh"></div>
+      <div class="field"><label>Game code</label><input class="text code" id="joinCode" maxlength="4" placeholder="ABCD" autocapitalize="characters"></div>
+      <button class="btn primary big" onclick="joinGame()">Join Game</button>
+    </section>
+    <section class="panel">
+      <h3>Host a game</h3>
+      <div class="field"><label>Your name</label><input class="text" id="hostName" maxlength="14" placeholder="e.g. Josh"></div>
+      <button class="btn secondary big" onclick="createGame()">Create New Game</button>
+      <p class="muted">You'll get a 4-letter code to share. You set the rules and run the rounds.</p>
+    </section>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="scrLobby" class="screen">
+    <section class="panel" style="text-align:center">
+      <div class="muted">Share this code</div>
+      <div class="gamecode" id="lobbyCode">----</div>
+      <div class="muted">Everyone opens this same website, taps Join Game and types it in.</div>
+    </section>
+    <section class="panel">
+      <h3>Players <span class="pill" id="lobbyCount">0</span></h3>
+      <div class="playerchips" id="lobbyPlayers"></div>
+      <p class="muted" id="lobbyWait">Waiting for the host to start…</p>
+    </section>
+    <section class="panel" id="hostSettings" style="display:none">
+      <h3>Game rules (host only)</h3>
+      <div class="field"><label>Difficulty</label>
+        <div class="seg" id="sDiff">
+          <button data-v="easy" class="on">Easy</button><button data-v="medium">Medium</button>
+          <button data-v="hard">Hard</button><button data-v="expert">Expert</button><button data-v="mixed">Mixed</button>
+        </div>
+      </div>
+      <div class="field"><label>Imposter style</label>
+        <div class="seg" id="sMode">
+          <button data-v="classic" class="on">Classic</button><button data-v="undercover">Undercover</button>
+        </div>
+      </div>
+      <div class="field" id="sHintField"><label>Related word hint</label>
+        <div class="seg" id="sHint"><button data-v="on" class="on">On</button><button data-v="off">Off</button></div>
+      </div>
+      <div class="field"><label>Play style</label>
+        <div class="seg" id="sStyle">
+          <button data-v="party" class="on">Free Play</button><button data-v="questions">Question Rounds</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:1"><label>Imposters</label><input type="number" id="sImp" min="1" value="1"></div>
+        <div class="field" id="sQRoundsField" style="flex:1;display:none"><label>Question rounds</label>
+          <select id="sQRounds"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Category</label><select id="sCat"><option value="__random__">🎲 Random</option></select></div>
+      <button class="btn primary big" onclick="hostStartRound()">Start Round 1</button>
+    </section>
+    <section class="panel"><button class="btn danger" onclick="leaveGame()">Leave Game</button></section>
+  </section>
+
+  <!-- PLAYING -->
+  <section id="scrPlay" class="screen">
+    <section class="panel">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div><span class="pill" id="playRound">Round 1</span> <span class="pill" id="playCat">Category</span> <span class="pill alt" id="playMode"></span></div>
+        <span class="timer-chip" id="playTimer" style="display:none">⏱ <span id="playTimerOut"></span></span>
+      </div>
+    </section>
+
+    <section class="panel" id="revealPanel" style="display:none">
+      <div class="revealbox">
+        <div class="muted">The word was</div>
+        <div class="w" id="revealWord"></div>
+        <div class="imps" id="revealImps"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="secret" id="secretCard">
+        <div class="label">Your secret</div>
+        <div class="hold">👆 Hold to peek</div>
+      </div>
+      <p class="muted" style="text-align:center;margin:8px 0 0">Hold the card to see your word. Let go to hide it. Don't show anyone!</p>
+    </section>
+
+    <section class="panel" id="qPanel" style="display:none">
+      <h3>❓ Questions <span class="pill" id="qProg"></span></h3>
+      <div class="ask-card" id="qCard">
+        <div class="asker" id="qAsker"></div>
+        <div class="arrow">asks</div>
+        <div class="askee" id="qAskee"></div>
+      </div>
+      <div class="row" id="qHostBtns" style="display:none">
+        <button class="btn primary" id="qNextBtn" onclick="hostNextQuestion()">Next Question</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Scores</h3>
+      <div id="scoreList"></div>
+    </section>
+
+    <section class="panel" id="hostControls" style="display:none">
+      <h3>Host controls</h3>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn primary" onclick="hostStartRound()">New Round</button>
+        <button class="btn secondary" id="revealBtn" onclick="hostReveal()">Reveal Answer</button>
+      </div>
+      <div class="row">
+        <button class="btn secondary" onclick="hostTimer(60)">⏱ 60s</button>
+        <button class="btn secondary" onclick="hostTimer(90)">⏱ 90s</button>
+        <button class="btn secondary" onclick="hostTimer(120)">⏱ 2min</button>
+        <button class="btn ghost" onclick="hostTimer(0)">Stop</button>
+      </div>
+      <p class="muted">Tap +/- next to players to award points. Change rules any time — they apply from the next round.</p>
+      <button class="btn ghost" onclick="toggleRules()" id="rulesToggle" style="margin-top:6px">Edit rules</button>
+      <div id="hostRulesWrap" style="display:none;margin-top:8px"></div>
+    </section>
+
+    <section class="panel"><button class="btn danger" onclick="leaveGame()">Leave Game</button></section>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   PASTE YOUR FIREBASE CONFIG BETWEEN THE BRACES BELOW.
+   Get it from: Firebase Console → Project settings → Your apps
+   → SDK setup and configuration → Config.
+   It looks like: apiKey: "...", authDomain: "...", databaseURL: "...", etc.
+   ═══════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAw-xOhnDpF6gOiwAm132hiOR3Mm8vEhdQ",
+  authDomain: "imposter-party-f46e7.firebaseapp.com",
+  databaseURL: "https://imposter-party-f46e7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "imposter-party-f46e7",
+  storageBucket: "imposter-party-f46e7.firebasestorage.app",
+  messagingSenderId: "229814897180",
+  appId: "1:229814897180:web:f6498f4174e2848b3fadd9",
+  measurementId: "G-CKMG2HEW1V"
+};
+</script>
+<script>
+/* ================= WORD BANKS =================
+   Each category is a list of CLUSTERS: groups of genuinely similar words.
+   Related-word hints (Classic) and decoy words (Undercover) come from the
+   same cluster as the real word, so they're always properly related. */
+
+const NARROW_BANK={
+"Coffee Shop Orders":[
+["Espresso","Double Espresso","Americano","Long Black","Filter Coffee","Decaf","Extra Shot"],
+["Latte","Flat White","Cappuccino","Cortado","Macchiato","Mocha"],
+["Caramel Latte","Vanilla Latte","Pumpkin Spice Latte","Chai Latte","Matcha Latte","Oat Milk Latte","Soy Latte"],
+["Iced Latte","Iced Americano","Iced Mocha","Cold Brew","Frappe"],
+["Hot Chocolate","Babyccino","English Breakfast Tea","Earl Grey","Green Tea","Peppermint Tea","Herbal Tea"]
+],
+"Pizza Toppings":[
+["Pepperoni","Ham","Bacon","Spicy Sausage","Chicken","BBQ Chicken","Meatballs","Salami","Chorizo","Prosciutto"],
+["Anchovies","Tuna","Prawns"],
+["Mushrooms","Onion","Green Peppers","Jalapenos","Sweetcorn","Olives","Cherry Tomatoes","Spinach","Rocket","Fresh Basil","Garlic","Pineapple"],
+["Extra Cheese","Mozzarella","Cheddar","Feta","Goat's Cheese","Parmesan"],
+["BBQ Base","Stuffed Crust","Thin Crust","Deep Pan","Garlic Dip","Chilli Flakes","Red Onion Chutney"]
+],
+"Breakfast Table":[
+["Cornflakes","Porridge","Granola","Muesli"],
+["Toast","Crumpets","Bagel","Croissant","Pain au Chocolat","French Toast"],
+["Scrambled Eggs","Fried Egg","Poached Egg","Boiled Egg and Soldiers","Eggs Benedict"],
+["Hash Browns","Baked Beans","Grilled Tomato","Black Pudding"],
+["Marmalade","Strawberry Jam","Honey","Peanut Butter","Chocolate Spread","Butter","Maple Syrup","Brown Sauce","Ketchup"],
+["Fresh Orange Juice","Smoothie","Yoghurt","Fruit Salad","Avocado Toast","Grapefruit","Breakfast Tea"]
+],
+"Types of Weather":[
+["Sunshine","Heatwave","Blue Skies","Scorcher","Indian Summer"],
+["Light Breeze","Strong Wind","Gale","Hurricane","Tornado"],
+["Drizzle","Light Rain","Heavy Rain","Downpour","Sun Shower","Thunderstorm","Lightning"],
+["Hail","Sleet","Snow","Blizzard","Frost","Black Ice","Cold Snap","Dew"],
+["Fog","Mist","Haze","Overcast","Partly Cloudy","Humid","Muggy"]
+],
+"On Your Phone":[
+["Follow","Unfollow","Block","Mute","Ghosting","Swipe Right","Swipe Left","Sliding into DMs"],
+["Story","Reel","Live Stream","Selfie","Filter","Hashtag","Trending","Going Viral","Emoji Reaction","GIF Reply"],
+["Group Chat","Voice Note","Video Call","Missed Call","Voicemail","Read Receipt","Typing Bubble"],
+["Airplane Mode","Do Not Disturb","Low Power Mode","Silent Mode","Ringtone","Notification","Dark Mode","Screen Time Report"],
+["Screenshot","Screen Record","Autocorrect","Predictive Text","Spam Call"]
+],
+"Sweets & Chocolate":[
+["Chocolate Buttons","Chocolate Orange","Milk Chocolate","Dark Chocolate","White Chocolate","Chocolate Coins","Advent Calendar","Easter Egg","Selection Box"],
+["Fudge","Toffee","Caramel","Honeycomb","Nougat","Marshmallows"],
+["Jelly Babies","Jelly Beans","Wine Gums","Fruit Pastilles","Gummy Bears","Sour Sweets"],
+["Sherbet","Lollipop","Candy Floss","Seaside Rock","Bonbons","Liquorice","Pick and Mix","Popping Candy","Parma Violets","Love Hearts"],
+["Mints","Chewing Gum","Bubblegum"]
+],
+"Colours & Shades":[
+["Crimson","Scarlet","Burgundy","Maroon","Rose","Blush","Coral","Salmon","Peach","Magenta","Fuchsia"],
+["Amber","Mustard","Gold","Lemon"],
+["Lime","Olive","Emerald","Mint","Khaki"],
+["Teal","Turquoise","Aqua","Sky Blue","Navy","Royal Blue","Indigo"],
+["Violet","Lavender","Lilac"],
+["Beige","Cream","Ivory","Charcoal","Slate","Silver","Bronze","Chestnut"]
+],
+"Party & Card Games":[
+["Charades","Pictionary","Musical Chairs","Musical Statues","Pass the Parcel","Pin the Tail on the Donkey","Limbo","Bingo"],
+["Truth or Dare","Never Have I Ever","Would You Rather","Two Truths and a Lie","Twenty Questions","I Spy","Spin the Bottle"],
+["Beer Pong","Flip Cup"],
+["Snap","Go Fish","Uno","Cheat","Rummy","Blackjack","Solitaire"],
+["Dominoes","Jenga","Twister","Connect Four","Battleships","Hangman","Noughts and Crosses"],
+["Rock Paper Scissors","Thumb War","Staring Contest","Sardines","Duck Duck Goose","Wink Murder","Mafia"]
+],
+"Fruit & Veg":[
+["Apple","Banana","Orange","Pear","Peach","Plum","Cherry","Apricot","Fig"],
+["Strawberry","Raspberry","Blueberry","Blackberry","Grape"],
+["Melon","Watermelon","Pineapple","Mango","Kiwi","Coconut","Pomegranate"],
+["Lemon","Lime","Grapefruit"],
+["Carrot","Potato","Sweet Potato","Beetroot","Parsnip","Onion","Garlic","Leek"],
+["Broccoli","Cauliflower","Cabbage","Lettuce","Spinach","Celery","Peas","Green Beans"],
+["Cucumber","Tomato","Red Pepper","Sweetcorn","Mushroom","Courgette","Aubergine","Pumpkin"]
+],
+"Takeaway Night":[
+["Margherita Pizza","Pepperoni Pizza","Garlic Bread","Cheesy Chips"],
+["Doner Kebab","Chicken Kebab","Kebab Salad","Chilli Sauce","Battered Sausage"],
+["Chow Mein","Egg Fried Rice","Spring Rolls","Prawn Crackers","Sweet and Sour Chicken"],
+["Chicken Korma","Tikka Masala","Naan Bread","Poppadoms","Onion Bhaji","Samosa"],
+["Fish and Chips","Curry Sauce","Mushy Peas","Pot of Gravy"],
+["Cheeseburger","Chicken Nuggets","Fries","Milkshake","Chicken Wings","BBQ Ribs","Onion Rings","Coleslaw"],
+["Dips","Meal Deal Upgrade","Free Delivery"]
+]
+};
+
+const SCENES_BANK={
+"In the Kitchen":[
+["Frying Pan","Saucepan","Wok","Baking Tray","Casserole Dish","Muffin Tin"],
+["Mixing Bowl","Whisk","Spatula","Wooden Spoon","Ladle","Tongs","Rolling Pin","Chopping Board","Pastry Brush","Skewer"],
+["Bread Knife","Peeler","Grater","Pizza Cutter","Garlic Press"],
+["Sieve","Colander","Measuring Jug","Kitchen Scales","Egg Timer"],
+["Blender","Food Processor","Stand Mixer","Air Fryer","Slow Cooker","Pressure Cooker","Toastie Maker"],
+["Corkscrew","Bottle Opener","Tin Opener"],
+["Oven Gloves","Apron","Tea Towel","Cling Film","Tin Foil","Baking Paper","Tupperware"],
+["Egg Cup","Teapot","Cafetiere","Ice Cube Tray","Salt Shaker","Pepper Grinder","Cooling Rack"]
+],
+"Beach & Holidays":[
+["Suitcase","Passport","Boarding Pass","Duty Free","Jet Lag","Window Seat","Travel Pillow","Airport Security","Currency Exchange","Lost Luggage"],
+["Sun Cream","Sunburn","Beach Towel","Deckchair","Parasol","Sunhat","Sun Lounger","Beach Hut","Towel on the Sunbed"],
+["Sandcastle","Bucket and Spade","Rock Pool","Seashell","Seagull","Wave","High Tide","Pier","Promenade","Ice Lolly"],
+["Snorkel","Flippers","Armbands","Inflatable Lilo","Beach Ball","Surfboard","Bodyboard","Pedalo","Banana Boat","Pool Float"],
+["Hotel Pool","All-Inclusive","Buffet Breakfast","Room Service","Mini Bar","Cocktail by the Pool","Beach Bar"],
+["Guided Tour","Souvenir","Postcard","Sightseeing"]
+],
+"School Days":[
+["Pencil Case","Fountain Pen","Rubber","Ruler","Protractor","Maths Compass","Calculator","Marker Pen","Chalk","Whiteboard"],
+["Exercise Book","Textbook","Homework","Revision","Mock Exam","Exam Hall","Report Card","Register"],
+["Tuck Shop","Packed Lunch","School Dinner","Lunchbox"],
+["Assembly","Sports Day","School Trip","Parents' Evening","School Play","School Choir","Show and Tell","School Photo","Graduation","Fire Drill","Snow Day","Golden Time"],
+["Head Teacher","Supply Teacher","Prefect","Head Boy"],
+["Classroom","Science Lab","Bunsen Burner","Locker","School Bus","School Playground","School Uniform","School Tie","PE Kit","School Bell","Detention","Recorder Lessons"]
+],
+"Music":[
+["Acoustic Guitar","Electric Guitar","Bass Guitar","Violin","Cello","Double Bass","Harp","Banjo","Ukulele"],
+["Flute","Clarinet","Saxophone","Trumpet","Trombone","Tuba","French Horn","Harmonica","Accordion","Bagpipes"],
+["Drums","Xylophone","Triangle","Tambourine","Maracas","Bongos"],
+["Piano","Keyboard","DJ Decks","Microphone","Amplifier","Speaker","Headphones"],
+["Vinyl Record","Record Player","Jukebox","Karaoke Machine","Playlist","Album Cover"],
+["Concert","Music Festival","Mosh Pit","Encore","Orchestra","Conductor","Band Practice","Guitar Solo","Drum Solo","Sound Check","Setlist","Lead Singer"]
+],
+"Tech & Gadgets":[
+["Smartphone","Tablet","Laptop","Desktop PC","Monitor","Keyboard","Mouse","Webcam","Printer","Scanner"],
+["Games Console","Controller","VR Headset","Gaming Headset","Games Chair"],
+["Smartwatch","Fitness Tracker","Wireless Earbuds"],
+["Bluetooth Speaker","Soundbar","Smart TV","Streaming Stick"],
+["Router","WiFi","Phone Charger","Power Bank","USB Stick","Hard Drive","Memory Card"],
+["Drone","Action Camera","Dash Cam","Doorbell Camera","Selfie Stick","Ring Light","Tripod"],
+["Smart Bulb","Smart Speaker","Robot Vacuum","Electric Toothbrush","Hair Straighteners"],
+["E-Reader","Sat Nav","Electric Car","E-Scooter","3D Printer","Solar Panel","Screen Protector","Phone Case","Stylus"]
+],
+"Nature & Outdoors":[
+["Mountain","Hill","Valley","Cliff","Cave","Volcano","Glacier","Canyon"],
+["Waterfall","River","Stream","Lake","Pond","Ocean","Hot Spring","Geyser","Coral Reef"],
+["Island","Desert","Rainforest","Jungle","Woodland","Meadow","Moor","Marsh","Sand Dune"],
+["Oak Tree","Pine Tree","Weeping Willow","Blossom","Ivy","Moss","Fern","Mushroom","Stinging Nettle","Brambles"],
+["Daffodil","Bluebell","Sunflower","Rose Bush","Dandelion"],
+["Acorn","Pinecone","Conker"],
+["Rainbow","Sunrise","Sunset","Full Moon","Shooting Star","Northern Lights"]
+],
+"Movie & TV Night":[
+["Rom-Com","Horror Film","Thriller","Documentary","Animation","Superhero Film","Western","Musical","Blockbuster"],
+["Sitcom","Soap Opera","Reality TV","Game Show","Quiz Show","Talent Show","Cooking Show","Nature Documentary"],
+["Plot Twist","Cliffhanger","Spoiler","Sequel","Prequel","Remake","Season Finale","Pilot Episode","Catchphrase","Theme Tune"],
+["Trailer","Blooper Reel","End Credits","Post-Credit Scene","Stunt Double","Green Screen","Director","Screenplay","Casting Call","Audition","Voice Over","Laugh Track","Subtitles"],
+["Red Carpet","Premiere","Box Office","Award Show","Popcorn Bucket","3D Glasses","Front Row Seats","Movie Marathon","Box Set","Binge Watch"]
+],
+"Hobbies":[
+["Knitting","Crochet","Sewing","Embroidery","Pottery","Origami","Calligraphy","Scrapbooking","Model Making","Lego Building"],
+["Painting","Drawing","Sketching","Photography"],
+["Jigsaw Puzzles","Crosswords","Sudoku","Board Games","Gaming"],
+["Reading","Creative Writing","Journaling","Blogging","Podcasting","Vlogging"],
+["Magic Tricks","Juggling","Dancing","Cosplay"],
+["Yoga","Pilates","Meditation"],
+["Birdwatching","Stargazing","Metal Detecting","Geocaching","Camping","Hiking","Fishing","Trainspotting"],
+["Coin Collecting","Stamp Collecting"],
+["Baking","Gardening","DIY","Woodwork","Car Restoration","Beekeeping","Wine Tasting","Home Brewing"]
+]
+};
+
+const BROAD_BANK={
+"Animals":[
+["Elephant","Giraffe","Lion","Tiger","Zebra","Hippo","Rhino","Camel","Monkey","Gorilla","Kangaroo","Koala","Panda","Crocodile"],
+["Penguin","Dolphin","Shark","Whale","Octopus","Crab","Seal"],
+["Horse","Cow","Pig","Sheep","Goat","Chicken","Duck"],
+["Owl","Eagle","Parrot","Flamingo","Peacock"],
+["Fox","Wolf","Bear","Deer","Squirrel","Hedgehog","Snake","Frog","Turtle"],
+["Rabbit","Mouse","Hamster","Dog","Cat"],
+["Spider","Bee","Butterfly"]
+],
+"Food & Drink":[
+["Pizza","Burger","Hot Dog","Spaghetti","Lasagne","Curry","Sushi","Taco","Burrito","Steak","Roast Chicken","Fish and Chips"],
+["Sandwich","Salad","Soup","Omelette","Garlic Bread","Rice","Noodles"],
+["Chips","Crisps","Popcorn","Cheese"],
+["Chocolate","Ice Cream","Birthday Cake","Doughnut","Cookie","Pancakes","Waffles"],
+["Apple","Banana","Orange","Strawberry","Grapes","Watermelon","Pineapple","Mango"],
+["Carrot","Broccoli","Sweetcorn","Tomato"],
+["Egg","Bacon","Sausage"],
+["Milkshake","Orange Juice","Lemonade","Cup of Tea","Coffee"]
+],
+"Around the House":[
+["Sofa","Armchair","Coffee Table","Television","Remote Control","Lamp","Bookshelf","Rug","Curtains","Cushion","Photo Frame","Candle"],
+["Bed","Pillow","Duvet","Wardrobe","Mirror","Alarm Clock","Blanket","Desk","Office Chair"],
+["Fridge","Freezer","Oven","Microwave","Kettle","Toaster","Kitchen Sink","Tap","Dishwasher"],
+["Washing Machine","Iron","Ironing Board","Vacuum Cleaner","Broom","Mop","Bin"],
+["Bathtub","Shower","Toilet","Towel","Toothbrush","Hairdryer"],
+["Radiator","Doorbell","House Key","Ladder","Toolbox","Plant Pot","Staircase"]
+],
+"Jobs":[
+["Doctor","Nurse","Dentist","Paramedic","Vet","Zookeeper"],
+["Firefighter","Police Officer","Soldier","Lifeguard"],
+["Chef","Waiter","Butcher","Baker"],
+["Builder","Plumber","Electrician","Mechanic","Farmer","Gardener","Cleaner","Fisherman"],
+["Pilot","Taxi Driver","Bus Driver","Train Driver","Delivery Driver","Postman"],
+["Teacher","Librarian","Scientist","Astronaut","Judge","Lawyer","Accountant","Banker","Estate Agent","Salesperson","Receptionist"],
+["Hairdresser","Barber","Photographer","Journalist","Actor","Singer","DJ","Artist","Tattoo Artist"],
+["Referee","Footballer"]
+],
+"Sports & Games":[
+["Football","Rugby","Cricket","Basketball","Baseball","Hockey","Ice Hockey","Netball","Volleyball","Dodgeball"],
+["Tennis","Badminton","Squash","Table Tennis"],
+["Golf","Snooker","Darts","Bowling","Pool","Archery"],
+["Boxing","Wrestling","Judo","Karate","Fencing"],
+["Swimming","Diving","Surfing","Sailing","Rowing","Kayaking"],
+["Cycling","Running","Marathon","Sprinting","Gymnastics","Trampolining","Horse Riding"],
+["Skiing","Snowboarding","Ice Skating","Skateboarding","Rock Climbing"],
+["Chess","Draughts","Monopoly","Scrabble","Jigsaw Puzzle","Hide and Seek","Tag"]
+],
+"On the Move":[
+["Car","Bus","Coach","Taxi","Lorry","Van","Limousine","Race Car","Monster Truck","Caravan","Campervan"],
+["Train","Tram","Underground","Cable Car","Ski Lift"],
+["Bicycle","Motorbike","Scooter","Skateboard","Roller Skates","Segway","Unicycle","Quad Bike","Golf Buggy"],
+["Ambulance","Fire Engine","Police Car","Tractor","Digger","Crane","Forklift","Tank"],
+["Aeroplane","Helicopter","Hot Air Balloon","Rocket"],
+["Rowing Boat","Ferry","Yacht","Sailing Boat","Canoe","Jet Ski","Submarine","Cruise Ship","Gondola"],
+["Horse and Cart","Sledge","Rickshaw","Escalator"]
+],
+"Places in Town":[
+["Supermarket","Corner Shop","Bakery","Butcher's","Pharmacy","Charity Shop","Pet Shop","Toy Shop","Bookshop","Garden Centre","Market","Shopping Centre"],
+["Post Office","Bank","Library","Town Hall","Hairdresser's"],
+["School","Hospital","Doctor's Surgery","Police Station","Fire Station","Church"],
+["Train Station","Bus Stop","Petrol Station","Car Park"],
+["Cinema","Theatre","Museum","Art Gallery","Zoo","Aquarium","Bowling Alley","Arcade","Funfair"],
+["Park","Playground","Swimming Pool","Gym","Football Stadium","Skate Park","Golf Course"],
+["Restaurant","Cafe","Pub","Nightclub","Hotel","Takeaway","Ice Cream Van"]
+],
+"Things You Wear":[
+["T-shirt","Shirt","Jumper","Hoodie","Cardigan","Vest"],
+["Jacket","Coat","Raincoat","Blazer"],
+["Suit","Waistcoat","Tie","Bow Tie"],
+["Jeans","Trousers","Shorts","Leggings","Skirt","Dress","Tracksuit"],
+["Pyjamas","Dressing Gown"],
+["Socks","Tights","Trainers","Boots","Wellies","Sandals","Flip Flops","Slippers","High Heels"],
+["Hat","Cap","Beanie","Scarf","Gloves","Mittens"],
+["Belt","Braces","Watch","Ring","Necklace","Earrings","Bracelet","Glasses","Sunglasses","Backpack","Handbag","Swimsuit"]
+]
+};
+
+const ABSTRACT_BANK={
+"Feelings & Moods":[
+["Furious","Frustrated","Annoyed","Irritated","Grumpy","Hangry"],
+["Terrified","Startled","Anxious","Nervous","Paranoid","Suspicious"],
+["Disappointed","Heartbroken","Devastated","Lonely","Homesick"],
+["Ashamed","Guilty","Embarrassed","Awkward","Shy","Jealous","Envious"],
+["Excited","Giddy","Hyper","Lovestruck","Starstruck","Speechless"],
+["Relieved","Grateful","Hopeful","Proud","Content","Smug","Confident","Determined","Motivated"],
+["Calm","Peaceful","Nostalgic"],
+["Bored","Lazy","Sleepy","Exhausted","Curious","Confused","Overwhelmed","Stressed"]
+],
+"First-World Problems":[
+["Slow WiFi","Dead Battery","No Phone Signal","Forgotten Password","Too Many Passwords","Buffering","Software Update","Pop-Up Ads","Cookie Banner","Autocorrect Fail","Group Chat Overload","Left on Read","Phone Storage Full","Tangled Earphones"],
+["Lost TV Remote","Too Many Streaming Services","Nothing to Watch","Spoiled Ending"],
+["Cold Coffee","Soggy Cereal","Empty Milk Carton","Stale Bread","Cold Chips","Tiny Portion","Wrong Order","Popcorn in Your Teeth"],
+["No Parking Spaces","Traffic Jam","Roadworks","Missed the Bus","Delayed Train","Middle Seat","No Legroom","Slow Walkers"],
+["Long Queue","Self-Checkout Error","Card Declined","Forgot the Bags","Junk Mail","Missed Delivery","Squeaky Trolley Wheel"],
+["One Sock Missing","Duvet Cover Battle","Paper Cut","Stubbed Toe","Hiccups","Brain Freeze","Bad Hair Day","Monday Morning","Itchy Label"]
+],
+"Awkward Moments":[
+["Wrong Group Chat","Reply All","Pocket Dial","Accidental Like","Text to the Wrong Person","Screenshot Sent to Them","Loud Phone Ring"],
+["Mic Left On","Camera Left On","Frozen on a Video Call","Talking on Mute"],
+["Waving at a Stranger","Forgetting a Name","Calling the Teacher Mum","Saying You Too","Forgetting Your Own Number","Blanking Mid-Sentence","Repeating a Story","Being Talked Over"],
+["Voice Crack","Tripping in Public","Walking into a Door","Pushing a Pull Door","Food in Your Teeth","Toilet Paper on Shoe","Loud Stomach Rumble","Sneezing Mid-Sentence","Falling Asleep in Public","Snoring on a Train"],
+["Handshake Gone Wrong","Going for a Hug","Double Kiss Confusion","Missing a High Five","Awkward Lift Ride","Standing Too Close","Walking the Same Way","The Long Goodbye","Waving Goodbye Then Walking the Same Direction"],
+["Laughing at the Wrong Time","Awkward Silence","Same Outfit as Someone","Singing the Wrong Lyrics","Clapping Too Early","Getting Caught Singing","Getting Caught Dancing","Third Wheel","Splitting the Bill","Forgotten Birthday","Bad Gift Reaction","Small Talk in a Taxi"]
+],
+"Superpowers & Fantasy":[
+["Flying","Super Speed","Teleportation","Walking Through Walls","Invisibility"],
+["Super Strength","Shapeshifting","Growing Giant","Shrinking","Cloning Yourself","Immortality","Healing Powers","Never Needing Sleep","Breathing Underwater"],
+["Mind Reading","Telekinesis","X-Ray Vision","Photographic Memory","Speaking Every Language","Talking to Animals","Dream Control","Controlling Luck"],
+["Laser Eyes","Fire Powers","Ice Powers","Lightning Powers","Weather Control","Freezing Time","Time Travel","Force Field"],
+["Wizard","Witch","Dragon","Unicorn","Mermaid","Fairy","Giant","Troll","Goblin","Vampire","Werewolf","Zombie","Ghost","Genie"],
+["Magic Wand","Flying Carpet","Invisibility Cloak","Crystal Ball","Love Potion","Cursed Treasure"]
+],
+"Big Life Moments":[
+["First Day of School","Losing a Tooth","Learning to Ride a Bike","First Sleepover","First Pet"],
+["Passing Your Driving Test","Failing Your Driving Test","First Car"],
+["First Job","First Payslip","Getting Promoted","Quitting a Job","Retiring"],
+["First Date","First Kiss","Meeting the Parents","Moving in Together","Getting Engaged","Wedding Day","Honeymoon"],
+["Buying a House","Getting the Keys","First Night in a New Home","Getting a Mortgage","Leaving Home"],
+["Having a Baby","Naming the Baby","Baby's First Steps","Baby's First Word","Becoming a Grandparent","Empty Nest"],
+["Starting University","Graduation Day","Gap Year","Passing an Exam"],
+["First Flight","First Festival","First Concert","First Tattoo","Adopting a Dog","School Reunion","Winning a Trophy","Winning the Lottery","New Year's Resolution","Big Birthday Party"],
+["Turning 18","Turning 21","Turning 30","Turning 40","Midlife Crisis"]
+],
+"Habits & Quirks":[
+["Nail Biting","Hair Twirling","Pen Clicking","Leg Bouncing","Knuckle Cracking"],
+["Snoozing the Alarm","Phantom Phone Buzz","Checking Phone First Thing","Doomscrolling","Screenshotting Everything","Leaving 47 Tabs Open","Pretending to Text","Re-Reading Texts Before Sending"],
+["Talking to Yourself","Overthinking","Procrastinating","Replying in Your Head","Rehearsing Conversations","Winning Arguments in the Shower","Fake Laughing","Nodding Without Listening"],
+["Singing in the Shower","Dancing While Cooking","Checking the Fridge Again","Midnight Snacking","Double Checking the Door","Talking to Plants","Apologising to Furniture","Naming Your Car","Waving at Dogs"],
+["Making Lists","Colour Coding","Alphabetising","Hoarding Carrier Bags","Saving Wrapping Paper","Keeping the Box","Never Reading Instructions","Refusing to Read the Manual"],
+["Skipping Intros","Watching at 2x Speed","Saying Ow Before It Hurts","Taking Stairs Two at a Time","Smelling Books","Popping Bubble Wrap","Peeling the Sticker","Eating the Crust Last","Saving the Best Bite","Dunking Biscuits","Blowing on Hot Food","Counting Steps"]
+],
+"A Night Out":[
+["Pre-Drinks","Taxi Queue","Bouncer","ID Check","Guest List","Cloakroom","Fancy Dress","Birthday Sash","Hen Do","Stag Do"],
+["Dance Floor","DJ Booth","Strobe Lights","Smoke Machine","Sticky Floor","One More Song","Photo Booth","Group Selfie","VIP Area"],
+["Round of Drinks","Last Orders","Happy Hour","Cocktail Menu","Round of Shots","Bar Tab","Beer Garden","Rooftop Bar","Bottomless Brunch"],
+["Karaoke Night","Pub Quiz","Pool Table","Dart Board"],
+["Designated Driver","Splitting the Taxi","Kebab Shop","2am Chips","Late Night Takeaway","Missing the Last Train","Night Bus","Carrying Your Heels","Lost Phone","Dead Phone at Midnight","Lost Jacket"],
+["Hangover","Fry-Up Cure","Checking Your Bank App","Blurry Photos","Group Chat Debrief","Crying in the Toilets","Toilet Queue Best Friend"]
+],
+"Very British Things":[
+["Queueing","Talking About the Weather","Saying Sorry Too Much"],
+["A Nice Cup of Tea","Putting the Kettle On","Custard Creams","Sunday Roast","Yorkshire Pudding","Full English","Beans on Toast","Chippy Tea","Gravy on Everything","Cheeky Nando's","Greggs Sausage Roll","Meal Deal","The Big Shop"],
+["Bank Holiday Rain","Donkey Rides","99 Flake"],
+["The Local Pub","Village Fete","Car Boot Sale","Charity Shop Bargain","Garden Gnome","Net Curtains","Bin Day","Next Door's Cat","Neighbourhood Watch","The Corner Shop","The Milkman","Red Postbox"],
+["Roundabouts","Zebra Crossing","Mind the Gap","Rail Replacement Bus","Motorway Services","National Trust Day Out","Sunday Drivers","Speed Cameras","Double Decker Bus","Black Cab"],
+["Wellies at a Festival","Festival Mud","Eurovision Party","Panto Season","Christmas Adverts","Boxing Day Sales","Easter Egg Hunt","Conkers","School Nativity"]
+]
+};
+
+const ALL_BANKS={easy:NARROW_BANK, medium:SCENES_BANK, hard:BROAD_BANK, expert:ABSTRACT_BANK};
+const DIFF_HINTS={
+  easy:"Tight categories — the word is obviously one of a small set. Easy to give clues, easy to blend.",
+  medium:"Specific scenes — kitchens, holidays, school days, gadgets. Still clear, more options.",
+  hard:"Broad categories — animals, jobs, places. The word could be almost anything.",
+  expert:"Abstract and wide open — feelings, awkward moments, very British chaos. Brutal to describe.",
+  mixed:"Every category from every difficulty, all in one pot."
+};
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function haptic(t="light"){ if(navigator.vibrate){ navigator.vibrate(t==="heavy"?[1,20,1]:t==="medium"?15:8); } }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+
+function catWords(bank,cat){ return (bank[cat]||[]).flat(); }
+function activeBank(diff){
+  if(diff==='mixed') return Object.assign({}, NARROW_BANK, SCENES_BANK, BROAD_BANK, ABSTRACT_BANK);
+  return ALL_BANKS[diff] || NARROW_BANK;
+}
+function pickDecoys(bank, cat, word, count){
+  const clusters=bank[cat]||[];
+  const home=clusters.find(cl=>cl.includes(word))||[];
+  const near=shuffle(home.filter(w=>w!==word));
+  const rest=shuffle(clusters.flat().filter(w=>w!==word && !near.includes(w)));
+  const pool=near.concat(rest);
+  const out=[];
+  for(let i=0;i<count;i++) out.push(pool[i] ?? pool[i % Math.max(pool.length,1)] ?? 'Mystery');
+  return out;
+}
+function buildQuestionSchedule(pids, rounds){
+  const n=pids.length, schedule=[], usedPairs=new Set();
+  for(let r=1;r<=rounds;r++){
+    let best=null, bestScore=Infinity;
+    for(let attempt=0;attempt<40;attempt++){
+      const order=shuffle(pids.slice());
+      const pairs=order.map((pid,i)=>({round:r, asker:pid, askee:order[(i+1)%n]}));
+      const score=pairs.reduce((s,p)=>s+(usedPairs.has(p.asker+'>'+p.askee)?1:0),0);
+      if(score<bestScore){ best=pairs; bestScore=score; }
+      if(bestScore===0) break;
+    }
+    best.forEach(p=>usedPairs.add(p.asker+'>'+p.askee));
+    schedule.push(...best);
+  }
+  return schedule;
+}
+
+/* ================= FIREBASE ================= */
+let db=null;
+const CONFIG_OK = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.databaseURL;
+if(CONFIG_OK){ firebase.initializeApp(firebaseConfig); db=firebase.database(); }
+else { $('setupWarning').style.display='block'; }
+
+/* ================= SESSION ================= */
+const LS='imposterOnline';
+function saveSession(s){ localStorage.setItem(LS, JSON.stringify(s)); }
+function loadSession(){ try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ return null; } }
+function clearSession(){ localStorage.removeItem(LS); }
+
+let CODE=null, PID=null, MYNAME=null, IS_HOST=false;
+let game=null;        // live snapshot of games/{CODE}
+let gameRef=null, gameListener=null;
+let usedWordsLocal={};    // host-side no-repeat tracking, per game session
+
+/* ================= CREATE / JOIN ================= */
+const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O (look like 1/0)
+function makeCode(){ let c=''; for(let i=0;i<4;i++) c+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]; return c; }
+function newPid(){ return 'p'+Math.random().toString(36).slice(2,10); }
+
+async function createGame(){
+  if(!db) return toast('Firebase not set up yet');
+  const name=$('hostName').value.trim();
+  if(!name) return toast('Enter your name first');
+  let code, tries=0;
+  do{
+    code=makeCode();
+    const snap=await db.ref('games/'+code).get();
+    if(!snap.exists()) break;
+  }while(++tries<10);
+  const pid=newPid();
+  const settings={diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__'};
+  await db.ref('games/'+code).set({
+    createdAt:Date.now(), status:'lobby', host:pid, settings,
+    players:{ [pid]:{name, joinedAt:Date.now()} },
+    scores:{ [pid]:0 }
+  });
+  CODE=code; PID=pid; MYNAME=name; IS_HOST=true;
+  saveSession({code, pid, name});
+  attachGame();
+  haptic('medium');
+}
+
+async function joinGame(){
+  if(!db) return toast('Firebase not set up yet');
+  const name=$('joinName').value.trim();
+  const code=$('joinCode').value.trim().toUpperCase();
+  if(!name) return toast('Enter your name first');
+  if(code.length!==4) return toast('Code is 4 letters');
+  const snap=await db.ref('games/'+code).get();
+  if(!snap.exists()) return toast('Game not found — check the code');
+  const g=snap.val();
+  const taken=Object.values(g.players||{}).some(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(taken) return toast('That name is taken in this game');
+  const pid=newPid();
+  await db.ref('games/'+code+'/players/'+pid).set({name, joinedAt:Date.now()});
+  await db.ref('games/'+code+'/scores/'+pid).set(0);
+  CODE=code; PID=pid; MYNAME=name; IS_HOST=false;
+  saveSession({code, pid, name});
+  attachGame();
+  haptic('medium');
+}
+
+async function leaveGame(){
+  if(!confirm('Leave this game?')) return;
+  try{
+    if(CODE && PID && db){
+      if(IS_HOST){ await db.ref('games/'+CODE).remove(); }
+      else{
+        await db.ref('games/'+CODE+'/players/'+PID).remove();
+        await db.ref('games/'+CODE+'/scores/'+PID).remove();
+      }
+    }
+  }catch(e){}
+  detachGame(); clearSession();
+  CODE=PID=MYNAME=null; IS_HOST=false; game=null;
+  showScreen('scrHome');
+}
+
+function attachGame(){
+  detachGame();
+  gameRef=db.ref('games/'+CODE);
+  gameListener=gameRef.on('value', snap=>{
+    game=snap.val();
+    if(!game){ // game deleted (host left)
+      toast('The host ended the game');
+      detachGame(); clearSession();
+      CODE=PID=MYNAME=null; IS_HOST=false;
+      showScreen('scrHome');
+      return;
+    }
+    if(!game.players?.[PID]){
+      toast('You were removed from the game');
+      detachGame(); clearSession();
+      CODE=PID=MYNAME=null; IS_HOST=false; game=null;
+      showScreen('scrHome');
+      return;
+    }
+    IS_HOST = game.host===PID;
+    render();
+  });
+}
+function detachGame(){ if(gameRef && gameListener){ gameRef.off('value', gameListener); } gameRef=gameListener=null; }
+
+/* Rejoin on refresh */
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('joinCode').addEventListener('input', e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,''); });
+});
+window.addEventListener('load', async ()=>{
+  buildSettingsUI();
+  const s=loadSession();
+  if(s && db){
+    const snap=await db.ref('games/'+s.code).get();
+    if(snap.exists() && snap.val().players?.[s.pid]){
+      CODE=s.code; PID=s.pid; MYNAME=s.name;
+      attachGame();
+      return;
+    }
+    clearSession();
+  }
+  showScreen('scrHome');
+});
+
+/* ================= HOST: SETTINGS UI ================= */
+const SETTING_SEGS=[
+  {id:'sDiff', key:'diff'},
+  {id:'sMode', key:'impMode', map:v=>v},
+  {id:'sHint', key:'hintOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sStyle', key:'playStyle'}
+];
+function buildSettingsUI(){
+  SETTING_SEGS.forEach(cfg=>{
+    document.querySelectorAll('#'+cfg.id+' button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if(!IS_HOST || !game) return;
+        const val=cfg.map ? cfg.map(b.dataset.v) : b.dataset.v;
+        db.ref('games/'+CODE+'/settings/'+cfg.key).set(val);
+        haptic('light');
+      });
+    });
+  });
+  $('sImp').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/impCount').set(Math.max(1,parseInt($('sImp').value,10)||1)); });
+  $('sQRounds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/qRounds').set(parseInt($('sQRounds').value,10)||2); });
+  $('sCat').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/category').set($('sCat').value); });
+}
+function syncSettingsUI(){
+  const st=game.settings||{};
+  SETTING_SEGS.forEach(cfg=>{
+    const cur=cfg.rev ? cfg.rev(st[cfg.key]) : String(st[cfg.key]);
+    document.querySelectorAll('#'+cfg.id+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===cur));
+  });
+  if(document.activeElement!==$('sImp')) $('sImp').value=st.impCount||1;
+  $('sQRounds').value=String(st.qRounds||2);
+  $('sHintField').style.display = st.impMode==='classic' ? '' : 'none';
+  $('sQRoundsField').style.display = st.playStyle==='questions' ? '' : 'none';
+  // category options for current difficulty
+  const sel=$('sCat'); const prev=st.category||'__random__';
+  sel.innerHTML='<option value="__random__">🎲 Random</option>';
+  Object.keys(activeBank(st.diff||'easy')).forEach(c=>{
+    const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o);
+  });
+  sel.value=[...sel.options].some(o=>o.value===prev)?prev:'__random__';
+}
+
+/* ================= HOST: START ROUND ================= */
+async function hostStartRound(){
+  if(!IS_HOST || !game) return;
+  const pids=Object.keys(game.players||{});
+  if(pids.length<2) return toast('Need at least 2 players');
+  const st=game.settings||{};
+  const bank=activeBank(st.diff||'easy');
+  const cat=(st.category && st.category!=='__random__' && bank[st.category]) ? st.category : pick(Object.keys(bank));
+  const words=catWords(bank,cat);
+  usedWordsLocal[cat]=usedWordsLocal[cat]||new Set();
+  let fresh=words.filter(w=>!usedWordsLocal[cat].has(w));
+  if(!fresh.length){ usedWordsLocal[cat].clear(); fresh=words.slice(); }
+  const word=pick(fresh);
+  usedWordsLocal[cat].add(word);
+
+  const k=Math.max(1, Math.min(st.impCount||1, pids.length));
+  const impPids=shuffle(pids.slice()).slice(0,k);
+  const decoys=pickDecoys(bank, cat, word, impPids.length);
+
+  const assignments={};
+  pids.forEach(pid=>{
+    const impIdx=impPids.indexOf(pid);
+    if(impIdx>=0){
+      if(st.impMode==='undercover'){
+        assignments[pid]={display:decoys[impIdx], sub:'', imp:true};
+      }else{
+        assignments[pid]={display:'IMPOSTER', sub:(st.hintOn!==false)?('Related word: '+decoys[impIdx]):'', imp:true};
+      }
+    }else{
+      assignments[pid]={display:word, sub:'', imp:false};
+    }
+  });
+
+  const round={
+    num:(game.round?.num||0)+1,
+    category:cat, word,
+    impMode:st.impMode||'classic',
+    imposters:impPids,
+    assignments,
+    revealed:false,
+    timerEndsAt:0
+  };
+  if((st.playStyle||'party')==='questions'){
+    round.qSchedule=buildQuestionSchedule(pids, st.qRounds||2);
+    round.qIndex=0;
+    round.qTotalRounds=st.qRounds||2;
+  }
+  await db.ref('games/'+CODE).update({status:'playing', round});
+  haptic('medium');
+}
+
+async function hostNextQuestion(){
+  if(!IS_HOST || !game?.round?.qSchedule) return;
+  const next=(game.round.qIndex||0)+1;
+  await db.ref('games/'+CODE+'/round/qIndex').set(next);
+  haptic('light');
+}
+async function hostReveal(){
+  if(!IS_HOST || !game?.round) return;
+  await db.ref('games/'+CODE+'/round/revealed').set(true);
+  haptic('heavy');
+}
+async function hostTimer(secs){
+  if(!IS_HOST || !game?.round) return;
+  await db.ref('games/'+CODE+'/round/timerEndsAt').set(secs>0 ? Date.now()+secs*1000 : 0);
+  haptic('light');
+}
+async function hostScore(pid, delta){
+  if(!IS_HOST) return;
+  const cur=game.scores?.[pid]||0;
+  await db.ref('games/'+CODE+'/scores/'+pid).set(cur+delta);
+  haptic('light');
+}
+async function hostKick(pid){
+  if(!IS_HOST || pid===PID) return;
+  if(!confirm('Remove '+(game.players?.[pid]?.name||'this player')+'?')) return;
+  await db.ref('games/'+CODE+'/players/'+pid).remove();
+  await db.ref('games/'+CODE+'/scores/'+pid).remove();
+}
+function toggleRules(){
+  const wrap=$('hostRulesWrap');
+  const show=wrap.style.display==='none';
+  if(show){ wrap.appendChild($('hostSettings')); $('hostSettings').style.display='block'; }
+  wrap.style.display=show?'block':'none';
+  $('rulesToggle').textContent=show?'Hide rules':'Edit rules';
+}
+
+/* ================= RENDER ================= */
+function showScreen(id){
+  ['scrHome','scrLobby','scrPlay'].forEach(s=>$(s).classList.toggle('show', s===id));
+}
+
+function render(){
+  if(!game){ showScreen('scrHome'); return; }
+  if(game.status==='lobby') renderLobby();
+  else renderPlay();
+}
+
+function renderLobby(){
+  showScreen('scrLobby');
+  $('lobbyCode').textContent=CODE;
+  const players=game.players||{};
+  const pids=Object.keys(players).sort((a,b)=>players[a].joinedAt-players[b].joinedAt);
+  $('lobbyCount').textContent=pids.length;
+  $('lobbyPlayers').innerHTML=pids.map(pid=>{
+    const you=pid===PID?' you':'';
+    const host=pid===game.host?' 👑':'';
+    const kick=(IS_HOST && pid!==PID)?`<span class="kick" onclick="hostKick('${pid}')">✕</span>`:'';
+    return `<span class="chip${you}">${esc(players[pid].name)}${host}${kick}</span>`;
+  }).join('');
+  $('hostSettings').style.display=IS_HOST?'block':'none';
+  $('lobbyWait').style.display=IS_HOST?'none':'block';
+  if(IS_HOST){
+    // settings panel lives in lobby by default
+    if($('hostSettings').parentElement.id==='hostRulesWrap'){
+      $('scrLobby').insertBefore($('hostSettings'), $('scrLobby').lastElementChild);
+    }
+    syncSettingsUI();
+  }
+}
+
+let timerTick=null;
+function renderPlay(){
+  showScreen('scrPlay');
+  const r=game.round||{};
+  const players=game.players||{};
+  const pids=Object.keys(players).sort((a,b)=>players[a].joinedAt-players[b].joinedAt);
+
+  $('playRound').textContent='Round '+(r.num||1);
+  $('playCat').textContent=r.category||'';
+  $('playMode').textContent=r.impMode==='undercover'?'🥸 Undercover':'🕵️ Classic';
+
+  /* my secret */
+  const mine=r.assignments?.[PID];
+  const card=$('secretCard');
+  card.dataset.word=mine?mine.display:'—';
+  card.dataset.sub=mine?(mine.sub||''):'';
+  card.dataset.imp=(mine && mine.imp && r.impMode!=='undercover')?'1':'0';
+  if(!card._held) resetSecretCard();
+
+  /* reveal */
+  if(r.revealed){
+    $('revealPanel').style.display='block';
+    $('revealWord').textContent=r.word||'';
+    const impNames=(r.imposters||[]).map(pid=>players[pid]?.name||'?').join(' & ');
+    $('revealImps').textContent='Imposter'+((r.imposters||[]).length>1?'s':'')+': '+impNames;
+  }else{
+    $('revealPanel').style.display='none';
+  }
+
+  /* questions */
+  if(r.qSchedule){
+    $('qPanel').style.display='block';
+    $('qHostBtns').style.display=IS_HOST?'flex':'none';
+    const idx=r.qIndex||0;
+    if(idx>=r.qSchedule.length){
+      $('qProg').textContent='Done';
+      $('qAsker').textContent='All questions asked!';
+      $('qAskee').textContent='Discuss and accuse';
+      $('qCard').classList.remove('me');
+      $('qNextBtn').style.display='none';
+    }else{
+      const q=r.qSchedule[idx];
+      $('qProg').textContent=`Round ${q.round} of ${r.qTotalRounds} · Q${(idx % pids.length)+1}/${pids.length}`;
+      $('qAsker').textContent=players[q.asker]?.name||'?';
+      $('qAskee').textContent=players[q.askee]?.name||'?';
+      $('qCard').classList.toggle('me', q.asker===PID || q.askee===PID);
+      $('qNextBtn').style.display='';
+      $('qNextBtn').textContent = idx===r.qSchedule.length-1 ? 'Finish Questions' : 'Next Question';
+    }
+  }else{
+    $('qPanel').style.display='none';
+  }
+
+  /* scores */
+  $('scoreList').innerHTML=pids.map(pid=>{
+    const nm=esc(players[pid].name)+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
+    const pts=game.scores?.[pid]||0;
+    const btns=IS_HOST?`<div class="btns">
+        <button onclick="hostScore('${pid}',-1)">-1</button>
+        <button onclick="hostScore('${pid}',1)">+1</button>
+        <button onclick="hostScore('${pid}',3)">+3</button>
+        <button onclick="hostScore('${pid}',5)">+5</button>
+      </div>`:'';
+    return `<div class="scorerow"><span class="nm">${nm}</span>${btns}<span class="pts">${pts} pts</span></div>`;
+  }).join('');
+
+  /* host controls */
+  $('hostControls').style.display=IS_HOST?'block':'none';
+  if(IS_HOST){
+    $('revealBtn').style.display = r.revealed ? 'none' : '';
+    if($('hostRulesWrap').style.display!=='none') syncSettingsUI();
+  }
+
+  /* timer */
+  clearInterval(timerTick);
+  const tick=()=>{
+    const ends=game?.round?.timerEndsAt||0;
+    const chip=$('playTimer');
+    if(!ends){ chip.style.display='none'; chip.classList.remove('hot'); return; }
+    const left=Math.ceil((ends-Date.now())/1000);
+    chip.style.display='inline-flex';
+    if(left<=0){
+      $('playTimerOut').textContent='TIME!';
+      chip.classList.add('hot');
+    }else{
+      $('playTimerOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+      chip.classList.toggle('hot', left<=10);
+      if(left===10) haptic('medium');
+    }
+  };
+  tick();
+  timerTick=setInterval(tick, 500);
+}
+
+/* ================= HOLD-TO-PEEK SECRET CARD ================= */
+function resetSecretCard(){
+  const card=$('secretCard');
+  card.classList.remove('revealing','imp');
+  card.innerHTML='<div class="label">Your secret</div><div class="hold">👆 Hold to peek</div>';
+}
+function showSecretCard(){
+  const card=$('secretCard');
+  const word=card.dataset.word||'—';
+  const sub=card.dataset.sub||'';
+  const isImp=card.dataset.imp==='1';
+  card.classList.add('revealing');
+  card.classList.toggle('imp', isImp);
+  card.innerHTML='<div class="word">'+esc(word)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'');
+  haptic(isImp?'heavy':'medium');
+}
+(function(){
+  const card=$('secretCard');
+  const down=e=>{ card._held=true; showSecretCard(); if(e.cancelable) e.preventDefault(); };
+  const up=()=>{ card._held=false; resetSecretCard(); };
+  card.addEventListener('touchstart', down, {passive:false});
+  card.addEventListener('touchend', up);
+  card.addEventListener('touchcancel', up);
+  card.addEventListener('mousedown', down);
+  card.addEventListener('mouseup', up);
+  card.addEventListener('mouseleave', up);
+  card.addEventListener('contextmenu', e=>e.preventDefault());
+})();
+</script>
+</body>
+</html>
