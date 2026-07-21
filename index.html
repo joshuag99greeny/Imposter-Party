@@ -52,6 +52,8 @@
   .chip.you{border-color:#7b5cff;background:#efeaff;color:#5a37ff}
   .chip .kick{color:#ff5b7a;font-weight:900;cursor:pointer;padding:0 2px}
 
+  .secretwrap{display:flex;flex-direction:column;gap:12px}
+  .secret .pname{font-weight:1000;font-size:clamp(18px,5vw,24px);letter-spacing:1px;text-transform:uppercase}
   .secret{
     position:relative;border-radius:16px;min-height:170px;display:flex;flex-direction:column;
     align-items:center;justify-content:center;text-align:center;gap:8px;padding:18px;
@@ -93,7 +95,8 @@
   .clockbox .cancel{margin-top:8px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:10px;padding:6px 12px;font-weight:800;cursor:pointer}
   .clockstrip{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0 2px}
   .clockstrip button{appearance:none;border:1px solid #ffb9c8;background:#fff3f5;color:#d0244b;border-radius:999px;padding:6px 12px;font-weight:900;font-size:13px;cursor:pointer}
-  .clockbtn{appearance:none;border:1px solid #e6e6f4;background:#fafaff;border-radius:8px;padding:6px 8px;font-weight:900;font-size:13px;cursor:pointer}
+  .clockbtn{appearance:none;border:none;border-radius:10px;padding:10px 14px;font-weight:900;font-size:14px;cursor:pointer;
+    background:linear-gradient(135deg,#ff5b7a,#ff9d5c);color:#fff;box-shadow:0 4px 10px rgba(255,91,122,.3);white-space:nowrap}
   .revealbox{background:#fff;border:2px solid #ffb9c8;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px}
   .revealbox .w{font-weight:1000;font-size:clamp(26px,8vw,40px);text-transform:uppercase}
   .revealbox .imps{font-weight:900;color:#d0244b;margin-top:4px}
@@ -223,12 +226,8 @@
     </section>
 
     <section class="panel">
-      <div class="seg" id="whoTabs" style="display:none;margin-bottom:10px"></div>
-      <div class="secret" id="secretCard">
-        <div class="label">Your secret</div>
-        <div class="hold">👆 Hold to peek</div>
-      </div>
-      <p class="muted" style="text-align:center;margin:8px 0 0">Hold the card to see your word. Let go to hide it. Don't show anyone!</p>
+      <div class="secretwrap" id="secretCards"></div>
+      <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
     </section>
 
     <section class="panel" id="qPanel" style="display:none">
@@ -861,6 +860,44 @@ function beep(freq=880, dur=0.12, vol=0.3){
 }
 function beepWarn(){ beep(880,0.1); haptic('medium'); }
 function beepEnd(){ beep(660,0.18); setTimeout(()=>beep(520,0.35),180); haptic('heavy'); setTimeout(()=>haptic('heavy'),300); }
+
+/* ── Game-show clock sounds ── */
+function tone(freq, dur, vol, type, when=0){
+  if(!audioCtx || audioCtx.state!=='running') return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t=audioCtx.currentTime+when;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.05);
+}
+/* Clock called: rising three-chime alert so everyone looks up */
+function sndClockCalled(){
+  tone(660,0.15,0.35,'sine',0);
+  tone(880,0.15,0.35,'sine',0.16);
+  tone(1100,0.3,0.4,'sine',0.32);
+  haptic('heavy');
+}
+/* Tick-tock: alternating pitch; intense mode is higher, sharper, louder */
+function sndTick(alt, intense){
+  const f=intense ? (alt?1500:1250) : (alt?1050:850);
+  tone(f, 0.05, intense?0.4:0.25, 'square');
+  if(intense){ tone(f*0.5, 0.05, 0.15, 'square'); haptic('medium'); }
+}
+/* Rising suspense sweep under the final seconds */
+function sndSuspense(level){ // level 1..5 as time runs out
+  tone(160+level*50, 0.5, 0.12, 'sawtooth');
+}
+/* Time's up: proper game-show buzzer */
+function sndBuzzer(){
+  tone(190,0.65,0.5,'sawtooth',0);
+  tone(120,0.65,0.4,'square',0);
+  tone(190,0.4,0.4,'sawtooth',0.75);
+  tone(120,0.4,0.3,'square',0.75);
+  haptic('heavy'); setTimeout(()=>haptic('heavy'),300); setTimeout(()=>haptic('heavy'),750);
+}
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
 function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
 
@@ -1154,8 +1191,6 @@ function deviceOf(pid){
   const p=game?.players?.[pid];
   return p?.device || pid;
 }
-let selectedLocalPid=null; // which of my device's players the secret card shows
-
 function nameTaken(name){
   return Object.values(game?.players||{}).some(p=>p.name.toLowerCase()===name.toLowerCase());
 }
@@ -1216,11 +1251,6 @@ async function hostClearClock(){
   await db.ref('games/'+CODE+'/round/clock').remove();
 }
 
-function selectLocal(pid){
-  selectedLocalPid=pid;
-  render();
-  haptic('light');
-}
 async function hostScore(pid, delta){
   if(!IS_HOST) return;
   const cur=game.scores?.[pid]||0;
@@ -1303,25 +1333,9 @@ function renderPlay(){
   $('playCat').textContent=r.category||'';
   $('playMode').textContent=r.impMode==='undercover'?'🥸 Undercover':'🕵️ Classic';
 
-  /* my secret — possibly several players sharing this phone */
+  /* my secrets — one big card per player on this phone, each hold-to-peek */
   const myIds=myPlayerIds();
-  if(!selectedLocalPid || !myIds.includes(selectedLocalPid)) selectedLocalPid=PID;
-  const tabs=$('whoTabs');
-  if(myIds.length>1){
-    tabs.style.display='flex';
-    tabs.innerHTML=myIds.map(pid=>
-      `<button class="${pid===selectedLocalPid?'on':''}" onclick="selectLocal('${pid}')">${esc(players[pid]?.name||'?')}</button>`
-    ).join('');
-  }else{
-    tabs.style.display='none';
-  }
-  const mine=r.assignments?.[selectedLocalPid];
-  const card=$('secretCard');
-  card.dataset.pname=players[selectedLocalPid]?.name||'';
-  card.dataset.word=mine?mine.display:'—';
-  card.dataset.sub=mine?(mine.sub||''):'';
-  card.dataset.imp=(mine && mine.imp && r.impMode!=='undercover')?'1':'0';
-  if(!card._held) resetSecretCard();
+  buildSecretCards(myIds, r, players);
 
   /* reveal */
   if(r.revealed){
@@ -1371,8 +1385,10 @@ function renderPlay(){
         <button onclick="hostScore('${pid}',5)">+5</button>
       </div>`:'';
     const canClock = times.length>0 && pid!==PID && !clockActive;
-    const clockBtn = canClock ? `<button class="clockbtn" onclick="toggleClockStrip('${pid}')">⏱</button>` : '';
-    const strip = (openClockFor===pid && canClock)
+    const clockBtn = !canClock ? '' : times.length===1
+      ? `<button class="clockbtn" onclick="callClock('${pid}',${times[0]})">⏱ Clock</button>`
+      : `<button class="clockbtn" onclick="toggleClockStrip('${pid}')">⏱ Clock</button>`;
+    const strip = (openClockFor===pid && canClock && times.length>1)
       ? `<div class="clockstrip">${times.map(t=>`<button onclick="callClock('${pid}',${t})">${t==='60'?'1 min':t+'s'}</button>`).join('')}</div>`
       : '';
     return `<div class="scorerow"><span class="nm">${nm}</span>${btns}${clockBtn}<span class="pts">${pts} pts</span></div>${strip}`;
@@ -1399,32 +1415,47 @@ function renderPlay(){
       if(left<=0){
         $('playTimerOut').textContent='TIME!';
         chip.classList.add('hot');
-        cueOnce('t'+ends+'end', beepEnd);
+        if(IS_HOST) cueOnce('t'+ends+'end', beepEnd);
       }else{
         $('playTimerOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
         chip.classList.toggle('hot', left<=10);
-        if(left<=3) cueOnce('t'+ends+'w'+left, beepWarn);
+        if(IS_HOST && left<=3) cueOnce('t'+ends+'w'+left, beepWarn);
       }
     }
-    /* player clock */
+    /* player clock — full game-show treatment */
     const c=rr.clock;
     const panel=$('clockPanel');
     if(c && c.endsAt > Date.now()-5000){
       panel.style.display='block';
       const targetName=game.players?.[c.target]?.name||'?';
       const byName=game.players?.[c.by]?.name||'?';
-      const left=Math.ceil((c.endsAt-Date.now())/1000);
+      const msLeft=c.endsAt-Date.now();
+      const left=Math.ceil(msLeft/1000);
       $('clockCancel').style.display=IS_HOST?'':'none';
+      /* All clock audio plays on the TARGET's phone only — the person
+         put on the clock. One speaker, no out-of-sync ticking, and the
+         pressure lands exactly where it should. Vibrates at the start
+         and the end too (Android — iPhones can't vibrate in browser). */
+      const iAmTarget=myPlayerIds().includes(c.target);
+      if(iAmTarget) cueOnce('c'+c.endsAt+'start', ()=>{sndClockCalled(); haptic('heavy'); setTimeout(()=>haptic('heavy'),250);});
       if(left<=0){
         $('clockWho').textContent='⏰ TIME\'S UP, '+targetName.toUpperCase()+'!';
         $('clockOut').textContent='0:00';
         $('clockBox').classList.add('hot');
-        cueOnce('c'+c.endsAt+'end', beepEnd);
+        if(iAmTarget) cueOnce('c'+c.endsAt+'end', ()=>{sndBuzzer(); setTimeout(()=>haptic('heavy'),1100);});
       }else{
         $('clockWho').textContent='⏰ '+byName+' put '+targetName+' on the clock!';
         $('clockOut').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
         $('clockBox').classList.toggle('hot', left<=5);
-        if(left<=3) cueOnce('c'+c.endsAt+'w'+left, beepWarn);
+        if(iAmTarget){
+          if(left>5){
+            if((c.endsAt-msLeft) > 600) cueOnce('c'+c.endsAt+'t'+left, ()=>sndTick(left%2===0, false));
+          }else{
+            const halfBeat=Math.ceil(msLeft/500);
+            cueOnce('c'+c.endsAt+'h'+halfBeat, ()=>sndTick(halfBeat%2===0, true));
+            cueOnce('c'+c.endsAt+'s'+left, ()=>sndSuspense(6-left));
+          }
+        }
       }
     }else{
       panel.style.display='none';
@@ -1444,35 +1475,60 @@ function cueOnce(key, fn){
   fn();
 }
 
-/* ================= HOLD-TO-PEEK SECRET CARD ================= */
-function resetSecretCard(){
-  const card=$('secretCard');
+/* ================= HOLD-TO-PEEK SECRET CARDS =================
+   One card per player on this phone. Each card is clearly named and
+   coloured so two people sharing a device can't mix them up. */
+const CARD_HUES=[255, 165, 30, 130, 320, 200]; // purple, blue-ish, orange, green, pink, teal
+let cardsSig=null;
+function buildSecretCards(myIds, r, players){
+  const sig=(r.num||0)+':'+r.impMode+':'+myIds.join(',');
+  const wrap=$('secretCards');
+  if(sig===cardsSig && wrap.children.length===myIds.length){
+    // Same round + same players: leave the cards alone (someone may be mid-hold)
+    return;
+  }
+  cardsSig=sig;
+  wrap.innerHTML='';
+  myIds.forEach((pid,i)=>{
+    const mine=r.assignments?.[pid];
+    const card=document.createElement('div');
+    card.className='secret';
+    const hue=CARD_HUES[i % CARD_HUES.length];
+    card.style.background=`linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue+40)%360},80%,55%))`;
+    card._pname=players[pid]?.name||'?';
+    card._word=mine?mine.display:'—';
+    card._sub=mine?(mine.sub||''):'';
+    card._imp=!!(mine && mine.imp && r.impMode!=='undercover');
+    card._hue=hue;
+    resetOneCard(card, myIds.length>1);
+    const down=e=>{ showOneCard(card); if(e.cancelable) e.preventDefault(); };
+    const up=()=>resetOneCard(card, myIds.length>1);
+    card.addEventListener('touchstart', down, {passive:false});
+    card.addEventListener('touchend', up);
+    card.addEventListener('touchcancel', up);
+    card.addEventListener('mousedown', down);
+    card.addEventListener('mouseup', up);
+    card.addEventListener('mouseleave', up);
+    card.addEventListener('contextmenu', e=>e.preventDefault());
+    wrap.appendChild(card);
+  });
+}
+function resetOneCard(card, shared){
   card.classList.remove('revealing','imp');
-  const nm=card.dataset.pname||'';
-  card.innerHTML='<div class="label">'+(nm?esc(nm)+'\u2019s secret':'Your secret')+'</div><div class="hold">👆 Hold to peek</div>';
+  card.style.background=`linear-gradient(135deg, hsl(${card._hue},70%,45%), hsl(${(card._hue+40)%360},80%,55%))`;
+  card.innerHTML='<div class="pname">'+esc(card._pname)+'</div>'+
+    '<div class="label">'+(shared?'ONLY '+esc(card._pname)+' holds this card':'Your secret')+'</div>'+
+    '<div class="hold">👆 Hold to peek</div>';
 }
-function showSecretCard(){
-  const card=$('secretCard');
-  const word=card.dataset.word||'—';
-  const sub=card.dataset.sub||'';
-  const isImp=card.dataset.imp==='1';
+function showOneCard(card){
   card.classList.add('revealing');
-  card.classList.toggle('imp', isImp);
-  card.innerHTML='<div class="word">'+esc(word)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'');
-  haptic(isImp?'heavy':'medium');
+  card.classList.toggle('imp', card._imp);
+  card.style.background='';
+  card.innerHTML='<div class="pname" style="color:#5a37ff">'+esc(card._pname)+'</div>'+
+    '<div class="word">'+esc(card._word)+'</div>'+
+    (card._sub?'<div class="sub">'+esc(card._sub)+'</div>':'');
+  haptic(card._imp?'heavy':'medium');
 }
-(function(){
-  const card=$('secretCard');
-  const down=e=>{ card._held=true; showSecretCard(); if(e.cancelable) e.preventDefault(); };
-  const up=()=>{ card._held=false; resetSecretCard(); };
-  card.addEventListener('touchstart', down, {passive:false});
-  card.addEventListener('touchend', up);
-  card.addEventListener('touchcancel', up);
-  card.addEventListener('mousedown', down);
-  card.addEventListener('mouseup', up);
-  card.addEventListener('mouseleave', up);
-  card.addEventListener('contextmenu', e=>e.preventDefault());
-})();
 </script>
 </body>
 </html>
