@@ -839,17 +839,32 @@ function haptic(t="light"){ if(navigator.vibrate){ navigator.vibrate(t==="heavy"
 
 /* Beeps via Web Audio — phones require a touch before audio is allowed,
    so we unlock the AudioContext on the first tap anywhere. */
-let audioCtx=null;
+let audioCtx=null, silentEl=null;
 function ensureAudio(){
   try{
-    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==='suspended') audioCtx.resume();
+    if(!audioCtx || audioCtx.state==='closed') audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state!=='running') audioCtx.resume();
+    /* iPhone trick: a silent looping <audio> switches Safari into "playback"
+       mode so Web Audio stays audible even with the ringer switch on silent,
+       and keeps the session alive after the screen has been locked. */
+    if(!silentEl){
+      silentEl=document.createElement('audio');
+      silentEl.setAttribute('playsinline','');
+      silentEl.loop=true;
+      silentEl.volume=0.01;
+      silentEl.src='data:audio/wav;base64,UklGRtQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YbAEAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA=';
+      const pr=silentEl.play();
+      if(pr) pr.catch(()=>{ silentEl=null; }); /* retry on the next tap */
+    }else if(silentEl.paused){
+      silentEl.play().catch(()=>{});
+    }
   }catch(e){}
 }
 document.addEventListener('touchstart', ensureAudio, true);
 document.addEventListener('click', ensureAudio, true);
 function beep(freq=880, dur=0.12, vol=0.3){
-  if(!audioCtx || audioCtx.state!=='running') return;
+  ensureAudio();
+  if(!audioCtx) return;
   const o=audioCtx.createOscillator(), g=audioCtx.createGain();
   o.type='sine'; o.frequency.value=freq;
   o.connect(g); g.connect(audioCtx.destination);
@@ -863,7 +878,8 @@ function beepEnd(){ beep(660,0.18); setTimeout(()=>beep(520,0.35),180); haptic('
 
 /* ── Game-show clock sounds ── */
 function tone(freq, dur, vol, type, when=0){
-  if(!audioCtx || audioCtx.state!=='running') return;
+  ensureAudio();
+  if(!audioCtx) return;
   const o=audioCtx.createOscillator(), g=audioCtx.createGain();
   o.type=type||'sine'; o.frequency.value=freq;
   o.connect(g); g.connect(audioCtx.destination);
@@ -1465,6 +1481,24 @@ function renderPlay(){
   tick();
   timerTick=setInterval(tick, 250);
 }
+
+/* Re-render when a clock crosses from running to finished, so the
+   ⏱ Clock buttons reappear immediately — clocks are unlimited, not
+   once per round. The host's phone also tidies the old clock out of
+   the database a few seconds after it ends. */
+let lastClockActive=false;
+setInterval(()=>{
+  if(!game?.round) { lastClockActive=false; return; }
+  const c=game.round.clock;
+  const active=!!(c && c.endsAt>Date.now());
+  if(active!==lastClockActive){
+    lastClockActive=active;
+    if(game.status==='playing') render();
+  }
+  if(IS_HOST && c && c.endsAt < Date.now()-6000){
+    db.ref('games/'+CODE+'/round/clock').remove();
+  }
+}, 500);
 
 /* Fire a sound/vibration cue exactly once per unique key */
 const firedCues=new Set();
