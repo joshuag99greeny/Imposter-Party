@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v28</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v29</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -244,8 +244,10 @@
         <select id="sVoice"></select>
         <div class="row" style="margin-top:6px">
           <button class="btn secondary" onclick="setVoice($('sVoice').value)">Use this voice</button>
+          <button class="btn ghost" onclick="refreshVoices()">🔄 Refresh list</button>
           <button class="btn ghost" onclick="testNarration()">🔊 Test</button>
         </div>
+        <span class="muted" id="voiceCount"></span><br>
         <span class="muted">iPhone: Settings → Accessibility → Spoken Content → Voices → English → download an <b>Enhanced</b> or <b>Premium</b> voice for a far better narrator, then pick it here.</span>
       </div>
       <div class="field" id="sMafiaField" style="display:none">
@@ -3105,9 +3107,14 @@ document.addEventListener('click', unlockSpeech, true);
 })(0);
 
 let pickedVoice=null;
-function englishVoices(){
+function allVoices(){
   if(!window.speechSynthesis) return [];
-  return (window.speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
+  return window.speechSynthesis.getVoices()||[];
+}
+/* kept for auto-selection only — the picker lists everything */
+function englishVoices(){
+  const vs=allVoices().filter(v=>/^en/i.test(v.lang));
+  return vs.length?vs:allVoices();
 }
 /* Phones ship with several voices and the default is usually the worst one.
    Score them so the most natural available voice wins. */
@@ -3129,7 +3136,7 @@ function chooseVoice(){
   if(!vs.length) return null;
   const saved=localStorage.getItem('impVoice');
   if(saved){
-    const match=vs.find(v=>v.name===saved);
+    const match=allVoices().find(v=>v.name===saved);   /* honour any language */
     if(match){ pickedVoice=match; return pickedVoice; }
   }
   pickedVoice=vs.slice().sort((a,b)=>voiceScore(b)-voiceScore(a))[0];
@@ -3137,15 +3144,33 @@ function chooseVoice(){
 }
 function buildVoicePicker(){
   const sel=$('sVoice'); if(!sel) return;
-  const vs=englishVoices();
-  if(!vs.length){ sel.innerHTML='<option>No voices found yet — tap Test</option>'; return; }
+  const vs=allVoices();
+  if(!vs.length){ sel.innerHTML='<option value="">No voices loaded — tap Refresh</option>'; return; }
   const cur=(pickedVoice&&pickedVoice.name)||localStorage.getItem('impVoice')||'';
-  sel.innerHTML=vs.slice().sort((a,b)=>voiceScore(b)-voiceScore(a))
-    .map(v=>'<option value="'+esc(v.name)+'"'+(v.name===cur?' selected':'')+'>'+esc(v.name)+' ('+v.lang+')</option>').join('');
+  /* English first (best-scoring at the top), then every other language */
+  const eng=vs.filter(v=>/^en/i.test(v.lang)).sort((a,b)=>voiceScore(b)-voiceScore(a));
+  const rest=vs.filter(v=>!/^en/i.test(v.lang)).sort((a,b)=>(a.lang+a.name).localeCompare(b.lang+b.name));
+  const opt=v=>'<option value="'+esc(v.name)+'"'+(v.name===cur?' selected':'')+'>'+esc(v.name)+' — '+esc(v.lang)+'</option>';
+  sel.innerHTML='<optgroup label="English voices">'+eng.map(opt).join('')+'</optgroup>'+
+    (rest.length?'<optgroup label="Other languages">'+rest.map(opt).join('')+'</optgroup>':'');
+  const note=$('voiceCount');
+  if(note) note.textContent=vs.length+' voices found on this phone.';
+}
+/* iOS often withholds the full list until speech has run once */
+function refreshVoices(){
+  unlockSpeech();
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  let tries=0;
+  (function poll(){
+    buildVoicePicker();
+    if(allVoices().length<2 && tries++<12) setTimeout(poll, 300);
+  })();
+  toast('Voice list refreshed.');
 }
 function setVoice(name){
+  if(!name) return toast('Pick a voice first');
   localStorage.setItem('impVoice', name);
-  const v=englishVoices().find(x=>x.name===name);
+  const v=allVoices().find(x=>x.name===name);
   if(v) pickedVoice=v;
   lastNarration='';
   narrate('This is your narrator. Everyone, go to sleep.');
