@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -143,7 +144,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v13</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v14</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -359,6 +360,7 @@
         <button class="btn secondary" id="revealBtn" onclick="hostReveal()">Reveal Answer</button>
       </div>
       <div class="row">
+        <button class="btn secondary" onclick="testNarration()">🔊 Test Narrator</button>
         <button class="btn secondary" onclick="hostTimer(60)">⏱ 60s</button>
         <button class="btn secondary" onclick="hostTimer(90)">⏱ 90s</button>
         <button class="btn secondary" onclick="hostTimer(120)">⏱ 2min</button>
@@ -2619,8 +2621,8 @@ const NIGHT_PAUSE=6000;  // longer pause after someone acts, so eyes can close
 async function hostSleepNow(){
   if(!IS_HOST || !game?.round) return;
   const base='games/'+CODE+'/round/';
+  narrate('Everyone, go to sleep.');      /* speak FIRST — iOS blocks speech after an await */
   await db.ref(base+'shield').remove();   /* fresh shield choice every single night */
-  narrate('Everyone, go to sleep.');
   await db.ref(base+'nightStep').set('sleeping');
   const pids=Object.keys(game.players||{});
   setTimeout(async ()=>{
@@ -2682,6 +2684,11 @@ async function mafiaHostTick(){
     }, NIGHT_PAUSE);
   }
 }
+function testNarration(){
+  lastNarration='';
+  narrate('Narrator test. Everyone, go to sleep.');
+  toast('If you heard nothing, turn the ringer switch on and check the volume.');
+}
 async function hostMafiaVote(){
   if(!IS_HOST) return;
   await db.ref('games/'+CODE+'/round/phase').set('vote');
@@ -2734,24 +2741,41 @@ function narrateOnce(key, text){
 }
 
 /* ── Spoken narration (host phone = the narrator) ── */
-let lastNarration='';
+let lastNarration='', speechReady=false;
+/* iOS only allows speech once it's been started inside a real tap.
+   Fire a silent utterance on the first interaction to unlock it. */
+function unlockSpeech(){
+  if(speechReady || !window.speechSynthesis) return;
+  try{
+    const u=new SpeechSynthesisUtterance(' ');
+    u.volume=0; u.rate=1;
+    window.speechSynthesis.speak(u);
+    speechReady=true;
+  }catch(e){}
+}
+document.addEventListener('touchstart', unlockSpeech, true);
+document.addEventListener('click', unlockSpeech, true);
+
 function narrate(text){
   if(!IS_HOST) return;
   if(text===lastNarration) return;
   lastNarration=text;
-  setTimeout(()=>{ if(lastNarration===text) lastNarration=''; }, 4000);
+  setTimeout(()=>{ if(lastNarration===text) lastNarration=''; }, 3000);
   try{
     if(window.speechSynthesis){
+      unlockSpeech();
+      /* Safari parks the speech engine when idle — a pause/resume wakes it */
+      try{ window.speechSynthesis.resume(); }catch(e){}
       const u=new SpeechSynthesisUtterance(text);
-      u.rate=0.85; u.pitch=0.85; u.volume=1;
-      window.speechSynthesis.cancel();
+      u.rate=0.85; u.pitch=0.85; u.volume=1; u.lang='en-GB';
+      u.onerror=()=>{ speechReady=false; };
       window.speechSynthesis.speak(u);
     }
   }catch(e){}
-  /* audible cue even if speech is unavailable */
-  if(/sleep/i.test(text)){ tone(420,0.5,0.35,'sine',0); tone(300,0.7,0.3,'sine',0.35); }
-  else if(/wake up/i.test(text)){ tone(600,0.18,0.35,'sine',0); tone(900,0.25,0.35,'sine',0.2); }
-  else { tone(760,0.2,0.35,'sine',0); }
+  /* short attention cue, quiet enough to talk over */
+  if(/sleep/i.test(text)){ tone(420,0.25,0.16,'sine',0); }
+  else if(/wake up/i.test(text)){ tone(760,0.18,0.16,'sine',0); }
+  else { tone(620,0.15,0.12,'sine',0); }
   haptic('heavy');
 }
 
