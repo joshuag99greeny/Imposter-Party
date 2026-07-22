@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v25</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v28</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -238,6 +238,15 @@
           <select id="hostSubDevice" style="flex:1;min-width:0;border:1px solid #e4e0ff;border-radius:10px;padding:10px;font-size:15px;background:#fff"></select>
         </div>
         <button class="btn secondary" onclick="hostAddShared()" style="margin-top:6px">Add shared player</button>
+      </div>
+      <div class="field" id="sVoiceField">
+        <label>🎙 Narrator voice (this phone only)</label>
+        <select id="sVoice"></select>
+        <div class="row" style="margin-top:6px">
+          <button class="btn secondary" onclick="setVoice($('sVoice').value)">Use this voice</button>
+          <button class="btn ghost" onclick="testNarration()">🔊 Test</button>
+        </div>
+        <span class="muted">iPhone: Settings → Accessibility → Spoken Content → Voices → English → download an <b>Enhanced</b> or <b>Premium</b> voice for a far better narrator, then pick it here.</span>
       </div>
       <div class="field" id="sMafiaField" style="display:none">
         <label>Mafia roles (chance per game)</label>
@@ -2674,6 +2683,15 @@ const FLAV_MAFIA_WIN=[
  "Last one standing is the one who did it. The mafia wins.",
  "The village trusted the wrong people, right to the very end. Mafia wins."
 ];
+const FLAV_SHOWDOWN=[
+ "Only three of you left. There'll be no more killing tonight — this ends with a vote.",
+ "Three remain. The killing stops here. One of you is lying, and two of you know it isn't them.",
+ "Down to the final three. No more nights, no more bodies. Just a vote, and the truth.",
+ "Three left standing. From here it's talking and voting. Choose carefully.",
+ "The final three. If you're innocent, the killer is sitting in front of you. Narrow it down.",
+ "Just three of you now. Two innocent people and one very good liar. Go.",
+ "The nights are over. One of these three is the mafia, and the vote decides it."
+];
 const FLAV_TIE=[
  "The vote was tied. Nobody dies today. Everyone is suspicious of everyone.",
  "A tie. The town can't agree, so the town does nothing. Classic.",
@@ -2961,7 +2979,7 @@ function testNarration(){
   setTimeout(()=>{
     if(!window.speechSynthesis) toast('This browser has no speech support.');
     else if(!vs.length) toast('No voices loaded yet — tap Test again.');
-    else toast('Voice: '+(pickedVoice?pickedVoice.name:vs[0].name)+' · if silent, check the ringer switch.');
+    else toast('Voice: '+(pickedVoice?pickedVoice.name:vs[0].name)+' · change it in Rules if you like.');
   }, 700);
 }
 async function hostMafiaVote(){
@@ -2974,6 +2992,29 @@ async function hostMafiaVote(){
     narrate('Time to vote.');
   });
 }
+/* With 3 players left it's always 1 mafia + 2 civilians. A night kill would
+   end it before anyone could vote, so the nights stop and it's decided by
+   discussion — both civilians know the mafia is one of the other two. */
+function finalShowdown(aliveCount){ return aliveCount<=3; }
+async function goToNightOrShowdown(r, pids){
+  const base='games/'+CODE+'/round/';
+  const alive=aliveOf(r,pids).length;
+  await db.ref(base+'votes').remove();
+  await db.ref(base+'shield').remove();
+  await db.ref(base+'dayNum').set((r.dayNum||1)+1);
+  if(finalShowdown(alive)){
+    await db.ref(base+'phase').set('day');
+    await db.ref(base+'nightStep').set('showdown');
+    const key='showdown'+(r.num||1);
+    if(IS_HOST && !narratedKeys.has(key)){
+      narratedKeys.add(key);
+      whenNarrationIdle(()=>narrate(flav(FLAV_SHOWDOWN)));
+    }
+    return;
+  }
+  await db.ref(base+'phase').set('night');
+  await db.ref(base+'nightStep').set('start');
+}
 async function resolveMafiaVote(){
   const r=game.round, pids=Object.keys(game.players||{});
   const base='games/'+CODE+'/round/';
@@ -2984,11 +3025,7 @@ async function resolveMafiaVote(){
   narrateVoteResult(r, alive, true);
   await db.ref(base+'lastVote').set({top, tie:top.length!==1, day:r.dayNum||1});
   if(top.length!==1){
-    await db.ref(base+'votes').remove();
-    await db.ref(base+'phase').set('night');
-    await db.ref(base+'nightStep').set('start');
-    await db.ref(base+'shield').remove();
-    await db.ref(base+'dayNum').set((r.dayNum||1)+1);
+    await goToNightOrShowdown(r, pids);
     return;
   }
   const out=top[0];
@@ -3002,11 +3039,9 @@ async function resolveMafiaVote(){
   /* Hunter takes someone with them — host picks for simplicity if hunter dies */
   const ended=await checkMafiaWin(r, pids, deadSet);
   if(ended) return;
-  await db.ref(base+'votes').remove();
-  await db.ref(base+'phase').set('night');
-  await db.ref(base+'nightStep').set('start');
-  await db.ref(base+'shield').remove();
-  await db.ref(base+'dayNum').set((r.dayNum||1)+1);
+  const fresh=Object.assign({}, r);
+  (deadSet||[]).forEach(d=>{ fresh.eliminated=Object.assign({}, fresh.eliminated||{}); fresh.eliminated[d]=true; });
+  await goToNightOrShowdown(fresh, pids);
 }
 async function hunterTake(pid){
   const sel=document.getElementById('hunt-'+pid); if(!sel||!sel.value) return;
@@ -3061,19 +3096,61 @@ function unlockSpeech(){
 }
 document.addEventListener('touchstart', unlockSpeech, true);
 document.addEventListener('click', unlockSpeech, true);
+/* voices load asynchronously — poll briefly on startup so the picker fills */
+(function primeVoices(n){
+  if(!window.speechSynthesis) return;
+  if((window.speechSynthesis.getVoices()||[]).length){ chooseVoice(); buildVoicePicker(); return; }
+  if(n>20) return;
+  setTimeout(()=>primeVoices(n+1), 250);
+})(0);
 
 let pickedVoice=null;
+function englishVoices(){
+  if(!window.speechSynthesis) return [];
+  return (window.speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
+}
+/* Phones ship with several voices and the default is usually the worst one.
+   Score them so the most natural available voice wins. */
+function voiceScore(v){
+  let sc=0;
+  const n=(v.name||'')+' '+(v.voiceURI||'');
+  if(/enhanced|premium|neural|natural/i.test(n)) sc+=60;   // downloaded HQ voices
+  if(/siri/i.test(n)) sc+=45;
+  if(/en-GB/i.test(v.lang)) sc+=30;                        // suits the theme
+  if(/daniel|arthur|oliver|george|malcolm/i.test(n)) sc+=20;
+  if(/google uk english male/i.test(n)) sc+=25;
+  if(/google uk english/i.test(n)) sc+=15;
+  if(/compact|eloquence|novelty|whisper|bells|bad news|jester/i.test(n)) sc-=40; // robotic ones
+  if(v.localService) sc+=5;
+  return sc;
+}
 function chooseVoice(){
-  if(!window.speechSynthesis) return null;
-  const vs=window.speechSynthesis.getVoices()||[];
+  const vs=englishVoices();
   if(!vs.length) return null;
-  pickedVoice = vs.find(v=>/en-GB/i.test(v.lang) && /daniel|male/i.test(v.name))
-             || vs.find(v=>/en-GB/i.test(v.lang))
-             || vs.find(v=>/^en/i.test(v.lang))
-             || vs[0];
+  const saved=localStorage.getItem('impVoice');
+  if(saved){
+    const match=vs.find(v=>v.name===saved);
+    if(match){ pickedVoice=match; return pickedVoice; }
+  }
+  pickedVoice=vs.slice().sort((a,b)=>voiceScore(b)-voiceScore(a))[0];
   return pickedVoice;
 }
-if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=chooseVoice;
+function buildVoicePicker(){
+  const sel=$('sVoice'); if(!sel) return;
+  const vs=englishVoices();
+  if(!vs.length){ sel.innerHTML='<option>No voices found yet — tap Test</option>'; return; }
+  const cur=(pickedVoice&&pickedVoice.name)||localStorage.getItem('impVoice')||'';
+  sel.innerHTML=vs.slice().sort((a,b)=>voiceScore(b)-voiceScore(a))
+    .map(v=>'<option value="'+esc(v.name)+'"'+(v.name===cur?' selected':'')+'>'+esc(v.name)+' ('+v.lang+')</option>').join('');
+}
+function setVoice(name){
+  localStorage.setItem('impVoice', name);
+  const v=englishVoices().find(x=>x.name===name);
+  if(v) pickedVoice=v;
+  lastNarration='';
+  narrate('This is your narrator. Everyone, go to sleep.');
+}
+if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=()=>{ chooseVoice(); buildVoicePicker(); };
 
 /* Lines queue up and play one after another — previously a new line
    cancelled whatever was still being spoken (so "everyone wake up"
@@ -3112,14 +3189,27 @@ function flushSpeech(){
   speechQueue=[]; speaking=false; lastNarration='';
   try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
 }
+/* Speech engines pause on punctuation — a few well-placed breaks make the
+   delivery far less flat than a single run-on sentence. */
+function dramatise(t){
+  return t
+    .replace(/^(Everyone|Medic|Angel|Mafia), /i, '$1... ')
+    .replace(/ — /g, '... ')
+    .replace(/\.\.\.\.\.\./g, '...');
+}
 function speakNow(text){
   try{
     if(!window.speechSynthesis){ nextInQueue(); return; }
     try{ if(audioCtx && audioCtx.state==='running') audioCtx.suspend(); }catch(e){}
-    const u=new SpeechSynthesisUtterance(text);
+    const u=new SpeechSynthesisUtterance(dramatise(text));
     if(!pickedVoice) chooseVoice();
     if(pickedVoice) u.voice=pickedVoice;
-    u.rate=0.9; u.pitch=0.9; u.volume=1; u.lang='en-GB';
+    /* night commands land slower and lower; results a touch brisker */
+    const nightCue=/sleep|wake up/i.test(text);
+    const verdict=/was the|wins|dead|died|is dead/i.test(text);
+    u.rate  = nightCue ? 0.78 : verdict ? 0.86 : 0.92;
+    u.pitch = nightCue ? 0.72 : verdict ? 0.8  : 0.85;
+    u.volume=1; u.lang=(pickedVoice&&pickedVoice.lang)||'en-GB';
     let done=false;
     const finish=()=>{ if(done) return; done=true; nextInQueue(); };
     u.onend=finish;
@@ -3310,6 +3400,9 @@ function renderMafiaPanel(r, pids, players){
 
   if(IS_HOST && r.phase==='night' && (r.nightStep==='start'||r.nightStep==='pending')){
     html+='<button class="btn primary big" style="margin-top:8px" onclick="hostSleepNow()">🌙 Everyone Go To Sleep</button>';
+  }
+  if(r.nightStep==='showdown' && r.phase!=='reveal'){
+    html+='<div class="elim-banner">⚖️ FINAL THREE — no more nights. This is decided by the vote.</div>';
   }
   if(IS_HOST && r.phase==='day'){
     html+='<button class="btn primary big" style="margin-top:8px" onclick="hostMafiaVote()">🗳 Start the Vote</button>';
