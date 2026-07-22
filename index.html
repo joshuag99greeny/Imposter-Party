@@ -113,6 +113,14 @@
   .turnbanner.me{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;animation:pulse 1.2s infinite}
   .bigstop{width:100%;padding:26px;font-size:24px;border-radius:16px}
   .timesrow{display:flex;justify-content:space-between;background:#fff;border:1px solid #e6e6f4;border-radius:10px;padding:8px 12px;margin-bottom:4px;font-weight:800}
+  .roles-tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6e6f4;border-radius:12px;overflow:hidden}
+  .roles-tbl td{padding:8px;border-bottom:1px solid #f1f1fb;font-size:13px}
+  .roles-tbl tr:last-child td{border-bottom:none}
+  .roles-tbl select{padding:5px 7px;border:1px solid #e4e0ff;border-radius:8px;background:#fff}
+  .odds-sel{padding:8px 10px;border:1px solid #e4e0ff;border-radius:10px;background:#fff;font-size:15px;max-width:100%;margin:4px 0}
+  .rolechip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#efeaff;color:#5a37ff;font-weight:900;font-size:13px}
+  .deadchip{opacity:.45;text-decoration:line-through}
+  .elim-banner{text-align:center;font-weight:1000;padding:10px;border-radius:12px;background:#ffe9ee;color:#d0244b;margin-bottom:8px}
   .revealbox{background:#fff;border:2px solid #ffb9c8;border-radius:14px;padding:14px;text-align:center;margin-bottom:10px}
   .revealbox .w{font-weight:1000;font-size:clamp(26px,8vw,40px);text-transform:uppercase}
   .revealbox .imps{font-weight:900;color:#d0244b;margin-top:4px}
@@ -177,6 +185,7 @@
           <button data-v="odd">❓ Odd One Out</button>
           <button data-v="artist">🎨 Fake Artist</button>
           <button data-v="seconds">⏱ Split Second</button>
+          <button data-v="mafia">🌙 Mafia</button>
         </div>
         <span class="muted" id="gameModeHint"></span>
       </div>
@@ -203,8 +212,16 @@
       </div>
       <div class="field" id="sStyleField"><label>Play style</label>
         <div class="seg" id="sStyle">
-          <button data-v="party" class="on">Free Play</button><button data-v="questions">Question Rounds</button>
+          <button data-v="party" class="on">Free Play</button><button data-v="questions">Question Rounds</button><button data-v="elimination">Elimination</button>
         </div>
+        <span class="muted" id="styleNote"></span>
+      </div>
+      <div class="field" id="sKnowField" style="display:none"><label>Imposters know each other</label>
+        <div class="seg" id="sKnow"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
+      </div>
+      <div class="field" id="sLoversField" style="display:none"><label>💕 Lovers (Elimination only)</label>
+        <div class="seg" id="sLovers"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
+        <span class="muted">Two secret crew members share their fate — vote one out and both go.</span>
       </div>
       <div class="row" id="sImpRow">
         <div class="field" style="flex:1"><label>Imposters</label><input type="number" id="sImp" min="1" value="1"></div>
@@ -218,6 +235,19 @@
           <select id="hostSubDevice" style="flex:1;min-width:0;border:1px solid #e4e0ff;border-radius:10px;padding:10px;font-size:15px;background:#fff"></select>
         </div>
         <button class="btn secondary" onclick="hostAddShared()" style="margin-top:6px">Add shared player</button>
+      </div>
+      <div class="field" id="sMafiaField" style="display:none">
+        <label>🩺 Medic</label>
+        <div class="seg" id="sMedic"><button data-v="on" class="on">On</button><button data-v="off">Off</button></div>
+        <label style="margin-top:8px">👼 Angel (first dead civilian shields from the grave)</label>
+        <div class="seg" id="sAngel"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
+        <label style="margin-top:8px">Mafia roles (chance per game)</label>
+        <table class="roles-tbl"><tbody id="sMafiaBody"></tbody></table>
+        <span class="muted">Medic and Angel switch off automatically at 3 players left.</span>
+      </div>
+      <div class="field" id="sRolesField"><label>Special roles (chance per round)</label>
+        <table class="roles-tbl"><tbody id="sRolesBody"></tbody></table>
+        <span class="muted">Roles land on non-imposters only.</span>
       </div>
       <div class="field" id="sGuessField"><label>Imposter word guess (+3)</label>
         <div class="seg" id="sGuess">
@@ -246,6 +276,7 @@
       </div>
     </section>
 
+    <div class="elim-banner" id="elimBanner" style="display:none"></div>
     <section class="panel" id="clockPanel" style="display:none">
       <div class="clockbox" id="clockBox">
         <div class="who" id="clockWho"></div>
@@ -266,6 +297,11 @@
       <div class="secretwrap" id="secretCards"></div>
       <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
       <div id="wordGuessWrap"></div>
+      <div id="rolePanel"></div>
+    </section>
+
+    <section class="panel" id="mafiaPanel" style="display:none">
+      <div id="mafiaContent"></div>
     </section>
 
     <section class="panel" id="oddPanel" style="display:none">
@@ -314,6 +350,7 @@
       <h3>Host controls</h3>
       <div class="row" style="margin-bottom:8px">
         <button class="btn primary" onclick="hostStartRound()">New Round</button>
+        <button class="btn primary" id="voteBtn" onclick="hostStartVote()" style="display:none">🗳 Start the Vote</button>
         <button class="btn secondary" id="revealBtn" onclick="hostReveal()">Reveal Answer</button>
       </div>
       <div class="row">
@@ -1166,7 +1203,9 @@ async function createGame(){
     if(!snap.exists()) break;
   }while(++tries<10);
   const pid=newPid();
-  const settings={gameMode:'word', oddType:'both', guessOn:true, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
+  const settings={gameMode:'word', oddType:'both', guessOn:true, knowImps:false, loversOn:false,
+    roleOdds:{detective:0,saboteur:0,jester:0,mayor:0,gambler:0,doubleagent:0},
+    medicOn:true, angelOn:false, mafiaOdds:{detective:50,sheriff:50,hunter:0,jester:0,mayor:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
     clockTimes:{"10":true,"20":true,"30":true,"60":true}};
   await db.ref('games/'+code).set({
     createdAt:Date.now(), status:'lobby', host:pid, settings,
@@ -1259,12 +1298,13 @@ window.addEventListener('load', async ()=>{
 });
 
 /* ================= HOST: SETTINGS UI ================= */
-const MODE_NAMES={word:'🕵️ Word Imposter', odd:'❓ Odd One Out', artist:'🎨 Fake Artist', seconds:'⏱ Split Second'};
+const MODE_NAMES={word:'🕵️ Word Imposter', odd:'❓ Odd One Out', artist:'🎨 Fake Artist', seconds:'⏱ Split Second', mafia:'🌙 Mafia'};
 const MODE_HINTS={
   word:'Everyone gets the word except the imposters. Give clues, sniff them out.',
   odd:'Everyone answers a question — but one person got a slightly different question. Compare answers, then vote.',
   artist:'Everyone draws one line each on a shared picture. One of you doesn\u2019t know what you\u2019re drawing. Then vote.',
-  seconds:'Everyone times the same number of seconds blind — but the imposter only knows a range. Then vote.'
+  seconds:'Everyone times the same number of seconds blind — but the imposter only knows a range. Then vote.',
+  mafia:'Town sleeps, mafia kills, town wakes and votes. Host phone narrates the night out loud. Needs 4+ players.'
 };
 const SETTING_SEGS=[
   {id:'sGameMode', key:'gameMode'},
@@ -1273,6 +1313,10 @@ const SETTING_SEGS=[
   {id:'sMode', key:'impMode', map:v=>v},
   {id:'sHint', key:'hintOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sGuess', key:'guessOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sKnow', key:'knowImps', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sLovers', key:'loversOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sMedic', key:'medicOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+  {id:'sAngel', key:'angelOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sStyle', key:'playStyle'}
 ];
 function buildSettingsUI(){
@@ -1289,6 +1333,28 @@ function buildSettingsUI(){
   $('sImp').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/impCount').set(Math.max(1,parseInt($('sImp').value,10)||1)); });
   $('sQRounds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/qRounds').set(parseInt($('sQRounds').value,10)||2); });
   $('sCat').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/category').set($('sCat').value); });
+  const rb=$('sRolesBody');
+  ROLE_KEYS.forEach(k=>{
+    const rd=ROLE_DEFS[k];
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+rd.emoji+' '+rd.name+'</b><br><span class="muted">'+rd.desc+'</span></td>'+
+      '<td style="width:80px"><select id="odds-'+k+'">'+[0,25,50,75,100].map(v=>'<option value="'+v+'">'+v+'%</option>').join('')+'</select></td>';
+    rb.appendChild(tr);
+    tr.querySelector('select').addEventListener('change', e=>{
+      if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/roleOdds/'+k).set(parseInt(e.target.value,10));
+    });
+  });
+  const mb=$('sMafiaBody');
+  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+    const rd=MAFIA_ROLES[k];
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+rd.emoji+' '+rd.name+'</b><br><span class="muted">'+rd.desc+'</span></td>'+
+      '<td style="width:80px"><select id="modds-'+k+'">'+[0,25,50,75,100].map(v=>'<option value="'+v+'">'+v+'%</option>').join('')+'</select></td>';
+    mb.appendChild(tr);
+    tr.querySelector('select').addEventListener('change', e=>{
+      if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/mafiaOdds/'+k).set(parseInt(e.target.value,10));
+    });
+  });
   document.querySelectorAll('#sClock button').forEach(b=>{
     b.addEventListener('click', ()=>{
       if(!IS_HOST || !game) return;
@@ -1318,11 +1384,28 @@ function syncSettingsUI(){
   $('sDiffField').style.display = gm==='word' ? '' : 'none';
   $('sCatField').style.display = (gm==='word'||gm==='artist') ? '' : 'none';
   $('sImpModeField').style.display = gm==='word' ? '' : 'none';
+  $('sImpModeField').style.display = gm==='word' ? '' : 'none';
   $('sHintField').style.display = (gm==='word' && st.impMode==='classic') ? '' : 'none';
   $('sStyleField').style.display = gm==='word' ? '' : 'none';
   $('sImpRow').style.display = gm==='word' ? '' : 'none';
   $('sQRoundsField').style.display = (gm==='word' && st.playStyle==='questions') ? '' : 'none';
-  $('sGuessField').style.display = gm!=='odd' ? '' : 'none';
+  $('sGuessField').style.display = (gm!=='odd') ? '' : 'none';
+  $('sKnowField').style.display = (gm==='word' && st.impMode!=='undercover' && (st.impCount||1)>1) ? '' : 'none';
+  $('sLoversField').style.display = ((gm==='word' && st.playStyle==='elimination') || gm==='mafia') ? '' : 'none';
+  $('sMafiaField').style.display = gm==='mafia' ? '' : 'none';
+  $('sRolesField').style.display = gm!=='mafia' ? '' : 'none';
+  const mo=st.mafiaOdds||{};
+  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+    const sel=$('modds-'+k); if(sel && document.activeElement!==sel) sel.value=String(mo[k]??0);
+  });
+  $('styleNote').textContent = st.playStyle==='elimination'
+    ? 'Vote someone out each round. Catch the imposter and crew wins; tie kicks nobody; imposter wins by reaching the final two.' : '';
+  const ro=st.roleOdds||{};
+  ROLE_KEYS.forEach(k=>{
+    const sel=$('odds-'+k); if(!sel) return;
+    if(document.activeElement!==sel) sel.value=String(ro[k]||0);
+    sel.closest('tr').style.display = ROLE_DEFS[k].modes.includes(gm) ? '' : 'none';
+  });
   // category options: drawable bank for Fake Artist, word banks otherwise
   const sel=$('sCat'); const prev=st.category||'__random__';
   sel.innerHTML='<option value="__random__">🎲 Random</option>';
@@ -1347,6 +1430,10 @@ async function hostStartRound(){
     if(gm==='odd') round=dealOddRound(pids, st, num);
     if(gm==='artist') round=dealArtistRound(pids, st, num);
     if(gm==='seconds') round=dealSecondsRound(pids, st, num);
+    if(gm==='mafia'){
+      if(pids.length<4) return toast('Mafia needs at least 4 players');
+      round=dealMafiaRound(pids, st, num);
+    }
     secRunning=null;
     await db.ref('games/'+CODE).update({status:'playing', round});
     haptic('medium');
@@ -1379,21 +1466,42 @@ async function hostStartRound(){
     }
   });
 
+  const roles=assignRoundRoles(pids, impPids, st, 'word');
   const round={
     mode:'word',
     num,
     guessOn:(st.guessOn!==false),
     category:cat, word,
     impMode:st.impMode||'classic',
+    playStyle:st.playStyle||'party',
     imposters:impPids,
+    impPid:impPids[0],
     assignments,
+    roles,
+    phase:'play',
+    votes:{}, scored:false,
     revealed:false,
     timerEndsAt:0
   };
+  /* imposters know each other (classic only — undercover imposters know nothing) */
+  if(st.knowImps && st.impMode!=='undercover' && impPids.length>1){
+    impPids.forEach(pid=>{
+      const mates=impPids.filter(x=>x!==pid).map(x=>game.players[x]?.name||'?').join(' & ');
+      if(assignments[pid]) assignments[pid].sub=(assignments[pid].sub?assignments[pid].sub+' · ':'')+'Fellow imposter: '+mates;
+    });
+  }
   if((st.playStyle||'party')==='questions'){
     round.qSchedule=buildQuestionSchedule(pids, st.qRounds||2);
     round.qIndex=0;
     round.qTotalRounds=st.qRounds||2;
+  }
+  if((st.playStyle||'party')==='elimination'){
+    round.eliminated={};
+    round.voteRound=1;
+    if(st.loversOn){
+      const lv=pickLovers(pids, impPids);
+      if(lv) round.lovers=lv;
+    }
   }
   await db.ref('games/'+CODE).update({status:'playing', round});
   haptic('medium');
@@ -1572,6 +1680,7 @@ function dealOddRound(pids, st, num){
   const [main, impQ]=pool[idx];
   const impPid=pick(pids);
   return {mode:'odd', num, phase:'answer', qMain:main, qImp:impQ, impPid,
+          roles:assignRoundRoles(pids, [impPid], st, 'odd'),
           answers:{}, votes:{}, scored:false, timerEndsAt:0};
 }
 
@@ -1580,6 +1689,7 @@ function dealArtistRound(pids, st, num){
   const impPid=pick(pids);
   const order=shuffle(pids.slice());
   return {mode:'artist', num, phase:'draw', guessOn:(st.guessOn!==false), category:cat, word, impPid,
+          roles:assignRoundRoles(pids, [impPid], st, 'artist'),
           order, turnIdx:0, totalTurns:pids.length*2,
           votes:{}, scored:false, timerEndsAt:0};
 }
@@ -1592,7 +1702,8 @@ function dealSecondsRound(pids, st, num){
   const low=Math.max(500, Math.min(target-offset, 10000-WIN));
   const impPid=pick(pids);
   return {mode:'seconds', num, phase:'play', guessOn:(st.guessOn!==false), target, impLow:low, impHigh:low+WIN,
-          impPid, order:shuffle(pids.slice()), turnIdx:0, times:{},
+          impPid, roles:assignRoundRoles(pids, [impPid], st, 'seconds'),
+          order:shuffle(pids.slice()), turnIdx:0, times:{},
           votes:{}, scored:false, timerEndsAt:0};
 }
 
@@ -1635,6 +1746,116 @@ function secPress(pid){
     db.ref('games/'+CODE+'/round/live').set(pid);
     renderSecondsPanel();
   }
+}
+
+
+/* ═══════════════ SPECIAL ROLES ═══════════════ */
+const ROLE_DEFS={
+  detective:{emoji:'🕵️‍♂️', name:'Detective', desc:'Once per game, secretly peek one player\u2019s alignment.', modes:['word','odd','artist','seconds']},
+  saboteur:{emoji:'💣', name:'Saboteur', desc:'Secretly pick a player to lose 1 point at the reveal.', modes:['word','odd','artist','seconds']},
+  jester:{emoji:'🤡', name:'Jester', desc:'You WANT the votes. +4 if you top the vote.', modes:['word','odd','artist','seconds']},
+  mayor:{emoji:'👑', name:'Mayor', desc:'Your vote secretly counts twice.', modes:['word','odd','artist','seconds']},
+  gambler:{emoji:'🎲', name:'Gambler', desc:'Lock a secret bet on the imposter before voting: +4 right, -2 wrong.', modes:['word']},
+  doubleagent:{emoji:'🔀', name:'Double Agent', desc:'You look crew, but you\u2019re rooting for the imposter. Info only.', modes:['word']}
+};
+const ROLE_KEYS=Object.keys(ROLE_DEFS);
+
+function assignRoundRoles(pids, impPids, st, mode){
+  const odds=st.roleOdds||{};
+  const included=ROLE_KEYS.filter(k=>ROLE_DEFS[k].modes.includes(mode) && (odds[k]||0)>0 && Math.random()*100<odds[k]);
+  shuffle(included);
+  const candidates=shuffle(pids.filter(p=>!impPids.includes(p)));
+  const roles={};
+  included.forEach(k=>{ if(candidates.length) roles[candidates.pop()]=k; });
+  return roles;
+}
+function pickLovers(pids, impPids){
+  const crew=shuffle(pids.filter(p=>!impPids.includes(p)));
+  return crew.length>=2 ? [crew[0], crew[1]] : null;
+}
+
+async function detectivePeek(pid){
+  const sel=document.getElementById('det-'+pid);
+  if(!sel || !sel.value) return;
+  const r=game.round;
+  if((game.abilities||{})[pid]?.detective) return;
+  const target=sel.value;
+  const isImp=(r.imposters||[r.impPid]).includes(target);
+  await db.ref('games/'+CODE+'/abilities/'+pid+'/detective').set(target);
+  const out=document.getElementById('detout-'+pid);
+  if(out) out.textContent=playerNameOf(target)+' is '+(isImp?'🚨 an IMPOSTER':'✅ crew')+'. Keep it to yourself...';
+  haptic('medium');
+}
+async function saboteurPick(pid){
+  const sel=document.getElementById('sab-'+pid);
+  if(!sel || !sel.value) return;
+  if(game.round.sabotage) return;
+  await db.ref('games/'+CODE+'/round/sabotage').set({by:pid, target:sel.value});
+  haptic('medium');
+}
+async function gamblerBet(pid){
+  const sel=document.getElementById('gam-'+pid);
+  if(!sel || !sel.value) return;
+  if((game.round.gbets||{})[pid]) return;
+  await db.ref('games/'+CODE+'/round/gbets/'+pid).set(sel.value);
+  haptic('medium');
+}
+
+function roleInfoFor(pid, r){
+  const roleKey=(r.roles||{})[pid];
+  const bits=[];
+  if(roleKey){ const rd=ROLE_DEFS[roleKey]; bits.push(rd.emoji+' '+rd.name+': '+rd.desc); }
+  if((r.lovers||[]).includes(pid)){
+    const other=r.lovers.find(x=>x!==pid);
+    bits.push('💕 Lover with '+playerNameOf(other)+' — if either of you is voted out, you BOTH go.');
+  }
+  return bits;
+}
+
+/* Actions panel: private controls for my players' roles */
+function rolePanelHTML(r, pids){
+  const alive=pids.filter(p=>!(r.eliminated||{})[p]);
+  let html='';
+  myPlayerIds().forEach(pid=>{
+    if((r.eliminated||{})[pid]) return;
+    const roleKey=(r.roles||{})[pid];
+    if(!roleKey) return;
+    const targets=alive.filter(p=>p!==pid);
+    const opts=targets.map(p=>'<option value="'+p+'">'+esc(playerNameOf(p))+'</option>').join('');
+    if(roleKey==='detective'){
+      const used=(game.abilities||{})[pid]?.detective;
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">🕵️‍♂️ '+esc(playerNameOf(pid))+' — Detective</div>';
+      if(used){
+        const isImp=(r.imposters||[r.impPid]).includes(used);
+        html+='<div class="muted" id="detout-'+pid+'">'+esc(playerNameOf(used))+' is '+(isImp?'🚨 an IMPOSTER':'✅ crew')+'.</div>';
+      }else{
+        html+='<select class="odds-sel" id="det-'+pid+'">'+opts+'</select> '+
+          '<button class="btn secondary" onclick="detectivePeek(\''+pid+'\')">Peek (once per game)</button>'+
+          '<div class="muted" id="detout-'+pid+'"></div>';
+      }
+      html+='</div>';
+    }
+    if(roleKey==='saboteur'){
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">💣 '+esc(playerNameOf(pid))+' — Saboteur</div>';
+      if(r.sabotage){ html+='<div class="muted">Locked: '+esc(playerNameOf(r.sabotage.target))+' loses 1 at the reveal.</div>'; }
+      else{
+        html+='<select class="odds-sel" id="sab-'+pid+'">'+opts+'</select> '+
+          '<button class="btn secondary" onclick="saboteurPick(\''+pid+'\')">Sabotage (locks)</button>';
+      }
+      html+='</div>';
+    }
+    if(roleKey==='gambler' && (r.phase==='play'||!r.phase)){
+      const bet=(r.gbets||{})[pid];
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">🎲 '+esc(playerNameOf(pid))+' — Gambler</div>';
+      if(bet){ html+='<div class="muted">Bet locked on '+esc(playerNameOf(bet))+'. +4 right, -2 wrong.</div>'; }
+      else{
+        html+='<select class="odds-sel" id="gam-'+pid+'">'+opts+'</select> '+
+          '<button class="btn secondary" onclick="gamblerBet(\''+pid+'\')">Lock Bet (before voting)</button>';
+      }
+      html+='</div>';
+    }
+  });
+  return html;
 }
 
 /* ═══════════════ Imposter word guess (+3) ═══════════════ */
@@ -1700,32 +1921,49 @@ function safeSetHTML(el, html){
 }
 
 /* ═══════════════ Voting + scoring ═══════════════ */
+function impListOf(r){ return r.imposters || (r.impPid?[r.impPid]:[]); }
 function computeVoteResults(r, pids){
   const tally={};
-  Object.values(r.votes||{}).forEach(t=>{ tally[t]=(tally[t]||0)+1; });
+  Object.entries(r.votes||{}).forEach(([voter,t])=>{
+    const w=((r.roles||{})[voter]==='mayor') ? 2 : 1;   // 👑 Mayor counts double
+    tally[t]=(tally[t]||0)+w;
+  });
   const maxVotes=Math.max(0,...Object.values(tally));
   const topVoted=Object.keys(tally).filter(p=>tally[p]===maxVotes && maxVotes>0);
-  /* Three outcomes:
-     caught  — imposter alone on the most votes: imposter 0
-     tied    — imposter shares the most votes:   imposter +2
-     escaped — imposter doesn't top the vote:    imposter +5
-     Correct voters always get +2 whatever happens. */
+  /* caught — an imposter alone on top: imposters 0
+     tied   — an imposter shares the top: imposters +2
+     escaped— no imposter tops the vote:  imposters +5
+     Correct voters always +2. */
+  const imps=impListOf(r);
+  const topImps=topVoted.filter(p=>imps.includes(p));
   let outcome='escaped';
-  if(topVoted.includes(r.impPid)) outcome = topVoted.length===1 ? 'caught' : 'tied';
-  return {tally, outcome, caught:outcome==='caught'};
+  if(topImps.length) outcome = topVoted.length===topImps.length && topVoted.length===1 ? 'caught' : (topVoted.length===1?'caught':'tied');
+  return {tally, topVoted, outcome, caught:outcome==='caught'};
+}
+async function applyRoleScores(r, pids, topVoted){
+  /* Jester: +4 for topping the vote. Saboteur: target -1. Gambler: +4/-2. */
+  const updates={};
+  const bump=(pid,d)=>{ if(d) updates[pid]=(updates[pid]??(game.scores?.[pid]||0))+d; };
+  pids.forEach(pid=>{
+    if((r.roles||{})[pid]==='jester' && (topVoted||[]).includes(pid)) bump(pid,4);
+  });
+  if(r.sabotage) bump(r.sabotage.target,-1);
+  Object.entries(r.gbets||{}).forEach(([pid,t])=>{ bump(pid, impListOf(r).includes(t)?4:-2); });
+  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
 }
 function bangOn(ms, target){
   /* "bang on" = matches the target at the precision shown on screen (0.01s) */
   return ms!=null && Math.round(ms/10)===Math.round(target/10);
 }
 async function applyVoteScores(r, pids){
-  const {outcome}=computeVoteResults(r, pids);
+  const {outcome, topVoted}=computeVoteResults(r, pids);
   const impPts = outcome==='escaped' ? 5 : outcome==='tied' ? 2 : 0;
+  const imps=impListOf(r);
   const updates={};
   pids.forEach(pid=>{
     let d=0;
-    if(pid===r.impPid){ d = impPts; }
-    else if((r.votes||{})[pid]===r.impPid){ d = 2; }
+    if(imps.includes(pid)){ d = impPts; }
+    else if(imps.includes((r.votes||{})[pid])){ d = 2; }
     /* Split Second: nail the target exactly for a +3 bonus (imposter included) */
     if(r.mode==='seconds' && bangOn((r.times||{})[pid], r.target)) d += 3;
     if(d) updates[pid]=(game.scores?.[pid]||0)+d;
@@ -1733,6 +1971,57 @@ async function applyVoteScores(r, pids){
   for(const [pid,v] of Object.entries(updates)){
     await db.ref('games/'+CODE+'/scores/'+pid).set(v);
   }
+  await applyRoleScores(r, pids, topVoted);
+}
+
+/* ═══════════════ Elimination resolution ═══════════════ */
+async function resolveEliminationVote(r, pids){
+  const alive=pids.filter(p=>!(r.eliminated||{})[p]);
+  const {tally}=computeVoteResults(r, alive);
+  const maxVotes=Math.max(0,...Object.values(tally));
+  const top=Object.keys(tally).filter(p=>tally[p]===maxVotes && maxVotes>0);
+  const imps=impListOf(r);
+  const base='games/'+CODE+'/round/';
+  if(top.length!==1){
+    /* tie — nobody goes */
+    await db.ref(base+'lastElim').set({tie:true, voteRound:r.voteRound||1});
+    await db.ref(base+'votes').remove();
+    await db.ref(base+'voteRound').set((r.voteRound||1)+1);
+    await db.ref(base+'phase').set('play');
+    return;
+  }
+  const out=top[0];
+  const dead=[out];
+  if((r.lovers||[]).includes(out)){
+    const partner=r.lovers.find(x=>x!==out);
+    if(!(r.eliminated||{})[partner]) dead.push(partner);   // 💕 lovers go together
+  }
+  for(const d of dead) await db.ref(base+'eliminated/'+d).set(true);
+  await db.ref(base+'lastElim').set({out:dead, voteRound:r.voteRound||1, lover:dead.length>1});
+  const newAlive=alive.filter(p=>!dead.includes(p));
+  const aliveImps=imps.filter(p=>newAlive.includes(p));
+  if(dead.some(p=>imps.includes(p)) && aliveImps.length===0){
+    /* crew win: correct final voters +2, jester check, roles */
+    const updates={};
+    newAlive.forEach(pid=>{ if(imps.includes((r.votes||{})[pid])) updates[pid]=(game.scores?.[pid]||0)+2; });
+    for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
+    await applyRoleScores(r, pids, top);
+    await db.ref(base+'elimResult').set('crew');
+    await db.ref(base+'phase').set('reveal');
+    return;
+  }
+  if(newAlive.length<=aliveImps.length+1){
+    /* imposters reach the final two: +5 each */
+    for(const ip of aliveImps) await db.ref('games/'+CODE+'/scores/'+ip).set((game.scores?.[ip]||0)+5);
+    await applyRoleScores(r, pids, top);
+    await db.ref(base+'elimResult').set('imposter');
+    await db.ref(base+'phase').set('reveal');
+    return;
+  }
+  /* game continues */
+  await db.ref(base+'votes').remove();
+  await db.ref(base+'voteRound').set((r.voteRound||1)+1);
+  await db.ref(base+'phase').set('play');
 }
 
 /* Host advances phases automatically as everyone finishes */
@@ -1750,10 +2039,28 @@ async function hostAutoAdvance(){
   if(r.mode==='seconds' && r.phase==='play' && (r.turnIdx||0)>=(r.order||[]).length){
     await db.ref('games/'+CODE+'/round/phase').set('vote');
   }
-  if(r.phase==='vote' && pids.every(p=>(r.votes||{})[p]) && !r.scored){
-    await db.ref('games/'+CODE+'/round/scored').set(true);
-    await applyVoteScores(r, pids);
-    await db.ref('games/'+CODE+'/round/phase').set('reveal');
+  if(r.mode==='mafia' && r.phase==='vote'){
+    const voters=pids.filter(p=>!(r.eliminated||{})[p]);
+    if(voters.every(p=>(r.votes||{})[p]) && r.resolving!==(r.dayNum||1)){
+      await db.ref('games/'+CODE+'/round/resolving').set(r.dayNum||1);
+      await resolveMafiaVote();
+    }
+    return;
+  }
+  if(r.phase==='vote' && !r.scored){
+    const voters=pids.filter(p=>!(r.eliminated||{})[p]);
+    if(voters.every(p=>(r.votes||{})[p])){
+      if(r.mode==='word' && r.playStyle==='elimination'){
+        if(r.resolving===(r.voteRound||1)) return;
+        await db.ref('games/'+CODE+'/round/resolving').set(r.voteRound||1);
+        await resolveEliminationVote(r, pids);
+      }else{
+        await db.ref('games/'+CODE+'/round/scored').set(true);
+        await applyVoteScores(r, pids);
+        await db.ref('games/'+CODE+'/round/phase').set('reveal');
+        if(r.mode==='word') await db.ref('games/'+CODE+'/round/revealed').set(true);
+      }
+    }
   }
 }
 async function hostStartVote(){
@@ -1767,7 +2074,9 @@ function playerNameOf(pid){ return game?.players?.[pid]?.name||'?'; }
 
 function renderVotePanel(r, pids, players){
   $('votePanel').style.display='block';
-  const myIds=myPlayerIds();
+  const alive=pids.filter(p=>!(r.eliminated||{})[p]);
+  pids=alive;
+  const myIds=myPlayerIds().filter(p=>!(r.eliminated||{})[p]);
   $('voteRows').innerHTML='';
   myIds.forEach(me=>{
     const row=document.createElement('div'); row.className='voterow';
@@ -1991,6 +2300,354 @@ function renderArtistPanel(r, pids, players){
   artRedraw();
 }
 
+
+/* ═══════════════ MAFIA MODE ═══════════════ */
+const MAFIA_ROLES={
+  medic:{emoji:'🩺', name:'Medic', desc:'Each night, shield one player from the kill. You may shield yourself.'},
+  detective:{emoji:'🔍', name:'Detective', desc:'Each night, investigate one player: mafia or not.'},
+  sheriff:{emoji:'🤠', name:'Sheriff', desc:'One bullet, any time. Shoot the mafia and they die. Shoot a civilian and YOU die.'},
+  hunter:{emoji:'🏹', name:'Hunter', desc:'When you die, you take one player down with you.'},
+  jester:{emoji:'🤡', name:'Jester', desc:'You WANT to be voted out. +4 if the town lynches you.'},
+  mayor:{emoji:'👑', name:'Mayor', desc:'Your vote secretly counts twice.'}
+};
+const MAFIA_ROLE_KEYS=Object.keys(MAFIA_ROLES);
+
+/* Medic and Angel switch off at 3 players or fewer — too strong late */
+function shieldsAllowed(aliveCount){ return aliveCount>3; }
+
+function dealMafiaRound(pids, st, num){
+  const mafiaPid=pick(pids);
+  const civs=shuffle(pids.filter(p=>p!==mafiaPid));
+  const roles={};
+  if(st.medicOn && civs.length) roles[civs.pop()]='medic';
+  const odds=st.mafiaOdds||{};
+  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+    if((odds[k]||0)>0 && Math.random()*100<odds[k] && civs.length) roles[civs.pop()]=k;
+  });
+  const round={mode:'mafia', num, phase:'night', nightStep:'start',
+    mafiaPid, roles, eliminated:{}, dayNum:1,
+    shield:null, investigations:{}, log:[],
+    votes:{}, angelPid:null, sheriffUsed:false,
+    medicOn:!!st.medicOn, angelOn:!!st.angelOn, guessOn:(st.guessOn!==false)};
+  /* Lovers pair completely at random — mafia and civilian is fair game */
+  if(st.loversOn && pids.length>=4){
+    const sh=shuffle(pids.slice());
+    round.lovers=[sh[0], sh[1]];
+  }
+  return round;
+}
+
+function aliveOf(r, pids){ return pids.filter(p=>!(r.eliminated||{})[p]); }
+function hasRole(r, key){ return Object.values(r.roles||{}).includes(key) ; }
+function pidWithRole(r, key){ return Object.keys(r.roles||{}).find(p=>r.roles[p]===key); }
+function activeShielder(r, pids){
+  /* Medic while alive, otherwise the Angel (a dead civilian granted the power) */
+  const alive=aliveOf(r,pids);
+  if(!shieldsAllowed(alive.length)) return null;
+  const medic=pidWithRole(r,'medic');
+  if(r.medicOn && medic && alive.includes(medic)) return medic;
+  if(r.angelOn && r.angelPid && !alive.includes(r.angelPid)) return r.angelPid;
+  return null;
+}
+
+/* ── Night actions ── */
+async function mafiaShield(pid){
+  const sel=document.getElementById('shield-'+pid); if(!sel||!sel.value) return;
+  const base='games/'+CODE+'/round/';
+  await db.ref(base+'shield').set({by:pid, target:sel.value});
+  await db.ref(base+'nightStep').set('mafia');
+  haptic('medium');
+}
+async function mafiaKill(pid){
+  const sel=document.getElementById('kill-'+pid); if(!sel||!sel.value) return;
+  await db.ref('games/'+CODE+'/round/pendingKill').set(sel.value);
+  await db.ref('games/'+CODE+'/round/nightStep').set('resolve');
+  haptic('heavy');
+}
+async function mafiaInvestigate(pid){
+  const sel=document.getElementById('inv-'+pid); if(!sel||!sel.value) return;
+  const r=game.round;
+  await db.ref('games/'+CODE+'/round/investigations/'+(r.dayNum||1)+'/'+pid).set(sel.value);
+  haptic('medium');
+}
+async function mafiaRoleGuess(pid){
+  const sel=document.getElementById('mrole-'+pid), tgt=document.getElementById('mtgt-'+pid);
+  if(!sel||!tgt||!tgt.value) return;
+  const r=game.round;
+  const correct=(r.roles||{})[tgt.value]===sel.value;
+  const dead = correct ? tgt.value : pid;   // wrong guess backfires fatally
+  await db.ref('games/'+CODE+'/round/roleGuess').set({by:pid, target:tgt.value, role:sel.value, correct});
+  await applyDeaths(r, [dead], correct ? 'guess-hit' : 'guess-backfire');
+  haptic('heavy');
+}
+async function sheriffShoot(pid){
+  const sel=document.getElementById('shoot-'+pid); if(!sel||!sel.value) return;
+  const r=game.round;
+  if(r.sheriffUsed) return;
+  const hit=sel.value===r.mafiaPid;
+  await db.ref('games/'+CODE+'/round/sheriffUsed').set(true);
+  await db.ref('games/'+CODE+'/round/sheriffShot').set({by:pid, target:sel.value, hit});
+  await applyDeaths(r, [hit?sel.value:pid], hit?'sheriff-hit':'sheriff-miss');
+  haptic('heavy');
+}
+
+/* ── Deaths, lovers, hunter, angel ── */
+async function applyDeaths(r, victims, reason){
+  const pids=Object.keys(game.players||{});
+  const base='games/'+CODE+'/round/';
+  const dead=new Set();
+  const queue=victims.filter(Boolean);
+  while(queue.length){
+    const v=queue.shift();
+    if(!v || dead.has(v) || (r.eliminated||{})[v]) continue;
+    dead.add(v);
+    if((r.lovers||[]).includes(v)){
+      const other=r.lovers.find(x=>x!==v);
+      if(other && !dead.has(other)) queue.push(other);
+    }
+  }
+  for(const d of dead) await db.ref(base+'eliminated/'+d).set(true);
+  /* Angel: first civilian death hands the shield on */
+  if(r.angelOn && !r.angelPid){
+    const cand=[...dead].find(d=>d!==r.mafiaPid);
+    if(cand) await db.ref(base+'angelPid').set(cand);
+  }
+  const log=(r.log||[]).slice();
+  log.push({reason, dead:[...dead], day:r.dayNum||1});
+  await db.ref(base+'log').set(log);
+  await checkMafiaWin(r, pids, dead);
+  return dead;
+}
+async function checkMafiaWin(r, pids, justDead){
+  const elim=Object.assign({}, r.eliminated||{});
+  (justDead||[]).forEach(d=>elim[d]=true);
+  const alive=pids.filter(p=>!elim[p]);
+  const base='games/'+CODE+'/round/';
+  const mafiaDead=elim[r.mafiaPid];
+  if(mafiaDead){
+    for(const p of alive) await db.ref('games/'+CODE+'/scores/'+p).set((game.scores?.[p]||0)+2);
+    await db.ref(base+'result').set('town');
+    await db.ref(base+'phase').set('reveal');
+    return true;
+  }
+  if(alive.length<=2){
+    await db.ref('games/'+CODE+'/scores/'+r.mafiaPid).set((game.scores?.[r.mafiaPid]||0)+6);
+    await db.ref(base+'result').set('mafia');
+    await db.ref(base+'phase').set('reveal');
+    return true;
+  }
+  return false;
+}
+
+/* ── Host night/day driver ── */
+async function mafiaHostTick(){
+  if(!IS_HOST || !game?.round || game.round.mode!=='mafia') return;
+  const r=game.round, pids=Object.keys(game.players||{});
+  const base='games/'+CODE+'/round/';
+  if(r.phase!=='night') return;
+  if(r.nightStep==='start'){
+    narrate('Everyone, go to sleep.');
+    const shielder=activeShielder(r,pids);
+    setTimeout(async ()=>{
+      if(shielder){ narrate(r.angelPid===shielder?'Angel, wake up.':'Medic, wake up.'); await db.ref(base+'nightStep').set('medic'); }
+      else { narrate('Mafia, wake up.'); await db.ref(base+'nightStep').set('mafia'); }
+    }, 3000);
+    await db.ref(base+'nightStep').set('sleeping');
+  }
+  if(r.nightStep==='resolve'){
+    await db.ref(base+'nightStep').set('resolving');
+    const target=r.pendingKill;
+    const shielded=r.shield && r.shield.target===target;
+    if(shielded){
+      const log=(r.log||[]).slice();
+      log.push({reason:'shielded', dead:[], day:r.dayNum||1, target});
+      await db.ref(base+'log').set(log);
+    }else{
+      await applyDeaths(r, [target], 'mafia-kill');
+    }
+    await db.ref(base+'pendingKill').remove();
+    setTimeout(async ()=>{
+      narrate('Everyone, wake up.');
+      const fresh=game.round;
+      if(fresh && fresh.phase==='night'){
+        await db.ref(base+'nightStep').set('done');
+        await db.ref(base+'phase').set('day');
+      }
+    }, 2500);
+  }
+}
+async function hostMafiaVote(){
+  if(!IS_HOST) return;
+  await db.ref('games/'+CODE+'/round/phase').set('vote');
+  narrate('Time to vote.');
+}
+async function resolveMafiaVote(){
+  const r=game.round, pids=Object.keys(game.players||{});
+  const base='games/'+CODE+'/round/';
+  const alive=aliveOf(r,pids);
+  const {tally}=computeVoteResults(r, alive);
+  const max=Math.max(0,...Object.values(tally));
+  const top=Object.keys(tally).filter(p=>tally[p]===max && max>0);
+  await db.ref(base+'lastVote').set({top, tie:top.length!==1, day:r.dayNum||1});
+  if(top.length!==1){
+    await db.ref(base+'votes').remove();
+    await db.ref(base+'phase').set('night');
+    await db.ref(base+'nightStep').set('start');
+    await db.ref(base+'shield').remove();
+    await db.ref(base+'dayNum').set((r.dayNum||1)+1);
+    return;
+  }
+  const out=top[0];
+  if((r.roles||{})[out]==='jester'){
+    await db.ref('games/'+CODE+'/scores/'+out).set((game.scores?.[out]||0)+4);
+  }
+  const deadSet=await applyDeaths(r, [out], 'lynch');
+  /* Hunter takes someone with them — host picks for simplicity if hunter dies */
+  const ended=await checkMafiaWin(r, pids, deadSet);
+  if(ended) return;
+  await db.ref(base+'votes').remove();
+  await db.ref(base+'phase').set('night');
+  await db.ref(base+'nightStep').set('start');
+  await db.ref(base+'shield').remove();
+  await db.ref(base+'dayNum').set((r.dayNum||1)+1);
+}
+async function hunterTake(pid){
+  const sel=document.getElementById('hunt-'+pid); if(!sel||!sel.value) return;
+  await db.ref('games/'+CODE+'/round/hunterUsed').set(true);
+  await applyDeaths(game.round, [sel.value], 'hunter');
+  haptic('heavy');
+}
+
+/* ── Spoken narration (host phone = the narrator) ── */
+let lastNarration='';
+function narrate(text){
+  if(!IS_HOST) return;
+  if(text===lastNarration) return;
+  lastNarration=text;
+  setTimeout(()=>{ if(lastNarration===text) lastNarration=''; }, 4000);
+  try{
+    if(window.speechSynthesis){
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.85; u.pitch=0.85; u.volume=1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+  }catch(e){}
+  /* audible cue even if speech is unavailable */
+  if(/sleep/i.test(text)){ tone(420,0.5,0.35,'sine',0); tone(300,0.7,0.3,'sine',0.35); }
+  else if(/wake up/i.test(text)){ tone(600,0.18,0.35,'sine',0); tone(900,0.25,0.35,'sine',0.2); }
+  else { tone(760,0.2,0.35,'sine',0); }
+  haptic('heavy');
+}
+
+function selOpts(list, exclude){
+  return list.filter(p=>!exclude||!exclude.includes(p))
+    .map(p=>'<option value="'+p+'">'+esc(playerNameOf(p))+'</option>').join('');
+}
+
+function renderMafiaPanel(r, pids, players){
+  $('mafiaPanel').style.display='block';
+  const alive=aliveOf(r,pids);
+  const myIds=myPlayerIds();
+  const myAlive=myIds.filter(p=>alive.includes(p));
+  let html='';
+
+  /* status line */
+  const phaseTxt = r.phase==='night' ? '🌙 Night '+(r.dayNum||1)
+    : r.phase==='day' ? '☀️ Day '+(r.dayNum||1)
+    : r.phase==='vote' ? '🗳 Voting' : '📜 Game over';
+  html+='<div class="turnbanner">'+phaseTxt+' — '+alive.length+' alive</div>';
+
+  /* morning report */
+  if(r.phase!=='night'){
+    const today=(r.log||[]).filter(l=>l.day===(r.dayNum||1));
+    today.forEach(l=>{
+      if(l.reason==='shielded') html+='<div class="elim-banner">🩺 The mafia struck — but their target was shielded! Nobody died.</div>';
+      if(l.reason==='mafia-kill') html+='<div class="elim-banner">💀 '+l.dead.map(playerNameOf).map(esc).join(' & ')+' was killed in the night.</div>';
+      if(l.reason==='lynch') html+='<div class="elim-banner">⚖️ The town voted out '+l.dead.map(playerNameOf).map(esc).join(' & ')+'.</div>';
+      if(l.reason==='sheriff-hit') html+='<div class="elim-banner">🤠 The Sheriff fired — and hit the mafia!</div>';
+      if(l.reason==='sheriff-miss') html+='<div class="elim-banner">🤠 The Sheriff fired at an innocent — and died for it.</div>';
+      if(l.reason==='guess-hit') html+='<div class="elim-banner">🎯 The mafia guessed a role correctly and killed '+l.dead.map(playerNameOf).map(esc).join(' & ')+'.</div>';
+      if(l.reason==='guess-backfire') html+='<div class="elim-banner">💥 The mafia guessed wrong — and it cost them their life.</div>';
+      if(l.reason==='hunter') html+='<div class="elim-banner">🏹 The Hunter took '+l.dead.map(playerNameOf).map(esc).join(' & ')+' down with them.</div>';
+    });
+    if(r.lastVote && r.lastVote.tie && r.lastVote.day===(r.dayNum||1)-1) html+='<div class="elim-banner">🤝 The vote tied — nobody was lynched.</div>';
+  }
+
+  /* night: private action cards for whoever is awake */
+  if(r.phase==='night'){
+    const shielder=activeShielder(r,pids);
+    myAlive.concat(myIds.filter(p=>p===r.angelPid)).forEach(pid=>{
+      const isShielder=pid===shielder;
+      const isMafia=pid===r.mafiaPid;
+      if(r.nightStep==='medic' && isShielder){
+        const label=(r.angelPid===pid)?'👼 Angel':'🩺 Medic';
+        html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+label+' — '+esc(playerNameOf(pid))+', you\'re awake</div>'+
+          '<div class="muted">Choose who to shield tonight'+(r.angelPid===pid?'':' (you can shield yourself)')+'.</div>'+
+          '<select class="odds-sel" id="shield-'+pid+'">'+selOpts(alive, r.angelPid===pid?[pid]:[])+'</select> '+
+          '<button class="btn primary" onclick="mafiaShield(\''+pid+'\')">Shield</button></div>';
+      }
+      if(r.nightStep==='mafia' && isMafia){
+        html+='<div class="qcard"><div class="qname" style="color:#d0244b">🔪 Mafia — '+esc(playerNameOf(pid))+', you\'re awake</div>'+
+          '<div class="muted">Choose your victim.</div>'+
+          '<select class="odds-sel" id="kill-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+          '<button class="btn danger" onclick="mafiaKill(\''+pid+'\')">Kill</button>';
+        if(r.guessOn!==false && !r.roleGuess){
+          html+='<div class="muted" style="margin-top:8px">Or gamble: guess someone\'s role. Right, they die. Wrong, YOU die.</div>'+
+            '<select class="odds-sel" id="mtgt-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+            '<select class="odds-sel" id="mrole-'+pid+'">'+MAFIA_ROLE_KEYS.map(k=>'<option value="'+k+'">'+MAFIA_ROLES[k].name+'</option>').join('')+'</select> '+
+            '<button class="btn secondary" onclick="mafiaRoleGuess(\''+pid+'\')">Guess Role</button>';
+        }
+        html+='</div>';
+      }
+      if(r.nightStep!=='start' && (r.roles||{})[pid]==='detective'){
+        const done=(r.investigations||{})[r.dayNum||1]?.[pid];
+        html+='<div class="qcard"><div class="qname" style="color:#5a37ff">🔍 Detective — '+esc(playerNameOf(pid))+'</div>';
+        if(done){ html+='<div class="muted">'+esc(playerNameOf(done))+' is '+(done===r.mafiaPid?'🚨 THE MAFIA':'✅ not the mafia')+'.</div>'; }
+        else{ html+='<select class="odds-sel" id="inv-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+          '<button class="btn secondary" onclick="mafiaInvestigate(\''+pid+'\')">Investigate</button>'; }
+        html+='</div>';
+      }
+    });
+    if(!html.includes('qcard')) html+='<p class="muted" style="text-align:center">Eyes closed. Wait for the narrator...</p>';
+  }
+
+  /* sheriff can shoot at any time while alive */
+  myAlive.forEach(pid=>{
+    if((r.roles||{})[pid]==='sheriff' && !r.sheriffUsed){
+      html+='<div class="qcard"><div class="qname" style="color:#d0244b">🤠 Sheriff — '+esc(playerNameOf(pid))+'</div>'+
+        '<div class="muted">One bullet, any time. Hit the mafia and they die. Miss and you die.</div>'+
+        '<select class="odds-sel" id="shoot-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+        '<button class="btn danger" onclick="sheriffShoot(\''+pid+'\')">🔫 Shoot</button></div>';
+    }
+    if((r.roles||{})[pid]==='hunter' && (r.eliminated||{})[pid] && !r.hunterUsed){
+      html+='<div class="qcard"><div class="qname" style="color:#d0244b">🏹 Hunter — take someone with you</div>'+
+        '<select class="odds-sel" id="hunt-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+        '<button class="btn danger" onclick="hunterTake(\''+pid+'\')">Fire</button></div>';
+    }
+  });
+  /* dead hunter still gets their shot */
+  myIds.filter(p=>(r.eliminated||{})[p] && (r.roles||{})[p]==='hunter' && !r.hunterUsed).forEach(pid=>{
+    if(html.includes('hunt-'+pid)) return;
+    html+='<div class="qcard"><div class="qname" style="color:#d0244b">🏹 Hunter — take someone with you</div>'+
+      '<select class="odds-sel" id="hunt-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
+      '<button class="btn danger" onclick="hunterTake(\''+pid+'\')">Fire</button></div>';
+  });
+
+  if(r.phase==='reveal'){
+    html+='<div class="revealbox"><div class="muted">The mafia was</div><div class="w">'+esc(playerNameOf(r.mafiaPid))+'</div>'+
+      '<div class="imps">'+(r.result==='town'?'🎉 TOWN WINS — survivors +2':'😈 MAFIA WINS — +6')+'</div></div>';
+    const roleBits=Object.entries(r.roles||{}).map(([pid,k])=>MAFIA_ROLES[k].emoji+' '+esc(playerNameOf(pid))+' — '+MAFIA_ROLES[k].name).join('<br>');
+    if(roleBits) html+='<div class="qcard"><div class="qname">Roles</div><div class="muted">'+roleBits+'</div></div>';
+    if(r.lovers) html+='<div class="muted">💕 Lovers: '+r.lovers.map(playerNameOf).map(esc).join(' & ')+'</div>';
+  }
+
+  if(IS_HOST && r.phase==='day'){
+    html+='<button class="btn primary big" style="margin-top:8px" onclick="hostMafiaVote()">🗳 Start the Vote</button>';
+  }
+  safeSetHTML($('mafiaContent'), html);
+}
+
 /* ================= RENDER ================= */
 function showScreen(id){
   ['scrHome','scrLobby','scrPlay'].forEach(s=>$(s).classList.toggle('show', s===id));
@@ -2052,11 +2709,11 @@ function renderPlay(){
                             : (mode==='artist' ? (r.category||'') : '');
 
   /* hide everything mode-specific, then show what this mode needs */
-  ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel'].forEach(id=>$(id).style.display='none');
-  document.querySelector('#secretCards').parentElement.style.display = (mode==='word'||mode==='artist'||mode==='seconds') ? 'block' : 'none';
+  ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel','mafiaPanel'].forEach(id=>$(id).style.display='none');
+  document.querySelector('#secretCards').parentElement.style.display = (mode!=='odd') ? 'block' : 'none';
 
   const myIds=myPlayerIds();
-  if(mode==='word'||mode==='artist'||mode==='seconds') buildSecretCards(myIds, r, players);
+  if(mode!=='odd') buildSecretCards(myIds, r, players);
   /* Word Imposter (classic): imposters can gamble a word guess for +3 */
   if(mode==='word' && r.impMode!=='undercover' && r.guessOn!==false){
     let gh='';
@@ -2078,16 +2735,48 @@ function renderPlay(){
   if(mode==='odd') renderOddPanel(r, pids, players);
   if(mode==='artist') renderArtistPanel(r, pids, players);
   if(mode==='seconds') renderSecondsPanel();
-  if(mode!=='word' && r.phase==='vote') renderVotePanel(r, pids, players);
-  if(mode!=='word' && r.phase==='reveal') renderResultPanel(r, pids, players);
+  if(mode==='mafia'){ renderMafiaPanel(r, pids, players); if(IS_HOST) mafiaHostTick(); }
+  if(r.phase==='vote') renderVotePanel(r, pids, players);
+  if(r.phase==='reveal' && mode!=='word' && mode!=='mafia') renderResultPanel(r, pids, players);
+  /* role actions live under the cards; hidden once the vote starts */
+  if(r.roles && r.phase!=='vote' && r.phase!=='reveal'){
+    safeSetHTML($('rolePanel'), rolePanelHTML(r, pids));
+  }else{
+    $('rolePanel').innerHTML='';
+  }
+  /* elimination status */
+  if(mode==='word' && r.playStyle==='elimination' && r.phase!=='reveal'){
+    let eb='Vote '+(r.voteRound||1)+' — '+pids.filter(p=>!(r.eliminated||{})[p]).length+' players left';
+    const le=r.lastElim;
+    if(le){
+      eb += le.tie ? ' · Last vote was a TIE, nobody kicked'
+        : ' · Voted out: '+(le.out||[]).map(playerNameOf).map(esc).join(' & ')+(le.lover?' 💕 (lovers fall together!)':'');
+    }
+    $('elimBanner').style.display='block';
+    $('elimBanner').innerHTML=eb;
+  }else{
+    $('elimBanner').style.display='none';
+  }
   if(IS_HOST) hostAutoAdvance();
 
   /* reveal (Word Imposter only) */
-  if(mode==='word' && r.revealed){
+  if(mode==='word' && (r.revealed || r.phase==='reveal')){
     $('revealPanel').style.display='block';
     $('revealWord').textContent=r.word||'';
     const impNames=(r.imposters||[]).map(pid=>players[pid]?.name||'?').join(' & ');
-    $('revealImps').innerHTML='Imposter'+((r.imposters||[]).length>1?'s':'')+': '+esc(impNames)+guessResultHTML(r);
+    let extra='';
+    if(r.playStyle==='elimination' && r.elimResult){
+      extra += r.elimResult==='crew' ? '<div>🎉 CREW WINS — imposter voted out! Correct voters +2</div>'
+                                     : '<div>😈 IMPOSTER WINS — survived to the final two! +5</div>';
+    }else if(r.phase==='reveal'){
+      const {outcome}=computeVoteResults(r, pids);
+      extra += '<div>'+(outcome==='caught'?'CAUGHT! Correct voters +2':outcome==='tied'?'TIED VOTE! Imposters scrape +2 · correct voters +2':'GOT AWAY WITH IT! Imposters +5 · correct voters +2')+'</div>';
+    }
+    /* role reveal */
+    const roleBits=Object.entries(r.roles||{}).map(([pid,k])=>ROLE_DEFS[k].emoji+' '+esc(playerNameOf(pid))+' was the '+ROLE_DEFS[k].name).join(' · ');
+    if(roleBits) extra+='<div class="muted" style="margin-top:4px">'+roleBits+'</div>';
+    if(r.lovers) extra+='<div class="muted">💕 Lovers: '+r.lovers.map(playerNameOf).map(esc).join(' & ')+'</div>';
+    $('revealImps').innerHTML='Imposter'+((r.imposters||[]).length>1?'s':'')+': '+esc(impNames)+extra+guessResultHTML(r);
   }
 
   /* questions (Word Imposter only) */
@@ -2119,7 +2808,8 @@ function renderPlay(){
   const times=enabledClockTimes();
   const clockActive=r.clock && r.clock.endsAt>Date.now();
   $('scoreList').innerHTML=pids.map(pid=>{
-    const nm=esc(players[pid].name)+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
+    const dead=(r.eliminated||{})[pid];
+    const nm='<span class="'+(dead?'deadchip':'')+'">'+esc(players[pid].name)+'</span>'+(dead?' 💀':'')+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
     const pts=game.scores?.[pid]||0;
     const btns=IS_HOST?`<div class="btns">
         <button onclick="hostScore('${pid}',-1)">-1</button>
@@ -2140,7 +2830,8 @@ function renderPlay(){
   /* host controls */
   $('hostControls').style.display=IS_HOST?'block':'none';
   if(IS_HOST){
-    $('revealBtn').style.display = (mode==='word' && !r.revealed) ? '' : 'none';
+    $('voteBtn').style.display = (mode==='word' && r.phase==='play') ? '' : 'none';
+    $('revealBtn').style.display = (mode==='word' && r.playStyle!=='elimination' && !r.revealed && r.phase==='play') ? '' : 'none';
     if($('hostRulesWrap').style.display!=='none') syncSettingsUI();
   }
 
@@ -2245,13 +2936,30 @@ function secretFor(pid, r){
   const mode=r.mode||'word';
   if(mode==='word'){
     const mine=r.assignments?.[pid];
-    return {word:mine?mine.display:'—', sub:mine?(mine.sub||''):'',
+    if((r.eliminated||{})[pid]) return {word:'VOTED OUT', sub:'You\u2019re a ghost now — no voting, just judging.', imp:false};
+    let sub=mine?(mine.sub||''):'';
+    const bits=roleInfoFor(pid, r);
+    if(bits.length && !(mine&&mine.imp)) sub=(sub?sub+' · ':'')+bits.join(' · ');
+    return {word:mine?mine.display:'—', sub,
             imp:!!(mine && mine.imp && r.impMode!=='undercover')};
   }
   if(mode==='artist'){
     return pid===r.impPid
       ? {word:'FAKE ARTIST', sub:'You don\u2019t know the word. Category: '+r.category+'. Blend in!', imp:true}
       : {word:r.word, sub:'Category: '+r.category, imp:false};
+  }
+  if(mode==='mafia'){
+    if((r.eliminated||{})[pid]) return {word:'DEAD', sub:pid===r.angelPid?'👼 You are the Angel — shield the living each night.':'Watch from the grave. No voting.', imp:false};
+    const rk=(r.roles||{})[pid];
+    const bits=[];
+    if(rk) bits.push(MAFIA_ROLES[rk].emoji+' '+MAFIA_ROLES[rk].name+': '+MAFIA_ROLES[rk].desc);
+    if((r.lovers||[]).includes(pid)){
+      const other=r.lovers.find(x=>x!==pid);
+      bits.push('💕 Lover with '+playerNameOf(other)+' — if either dies, you both die.');
+    }
+    return pid===r.mafiaPid
+      ? {word:'MAFIA', sub:(bits.length?bits.join(' · ')+' · ':'')+'Kill one player each night. Don\u2019t get caught.', imp:true}
+      : {word:'CIVILIAN', sub:bits.join(' · ')||'Survive. Find the mafia.', imp:false};
   }
   if(mode==='seconds'){
     return pid===r.impPid
@@ -2261,7 +2969,7 @@ function secretFor(pid, r){
   return {word:'—', sub:'', imp:false};
 }
 function buildSecretCards(myIds, r, players){
-  const sig=(r.num||0)+':'+(r.mode||'word')+':'+r.impMode+':'+myIds.join(',');
+  const sig=(r.num||0)+':'+(r.mode||'word')+':'+r.impMode+':'+myIds.join(',')+':'+Object.keys(r.eliminated||{}).length;
   const wrap=$('secretCards');
   if(sig===cardsSig && wrap.children.length===myIds.length){
     // Same round + same players: leave the cards alone (someone may be mid-hold)
