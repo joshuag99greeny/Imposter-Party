@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v20</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v22</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -242,7 +242,7 @@
       <div class="field" id="sMafiaField" style="display:none">
         <label>Mafia roles (chance per game)</label>
         <table class="roles-tbl"><tbody id="sMafiaBody"></tbody></table>
-        <span class="muted">Medic and Angel switch off automatically at 3 players left.</span>
+        <span class="muted">The Medic shields someone every night. The Angel switches off at 3 players left.</span>
       </div>
       <div class="field" id="sRolesField"><label>Special roles (chance per round)</label>
         <table class="roles-tbl"><tbody id="sRolesBody"></tbody></table>
@@ -2038,6 +2038,7 @@ async function resolveEliminationVote(r, pids){
   const base='games/'+CODE+'/round/';
   if(top.length!==1){
     /* tie — nobody goes */
+    narrateVoteResult(r, alive, false);
     await db.ref(base+'lastElim').set({tie:true, voteRound:r.voteRound||1});
     await db.ref(base+'votes').remove();
     await db.ref(base+'voteRound').set((r.voteRound||1)+1);
@@ -2159,7 +2160,25 @@ function renderVotePanel(r, pids, players){
 function narrateVoteResult(r, pids, mafiaMode){
   if(!IS_HOST) return;
   const {topVoted}=computeVoteResults(r, pids);
-  if(!topVoted || topVoted.length!==1) return;
+  if(!topVoted || !topVoted.length) return;
+  /* tied vote — announce it properly instead of saying nothing at all */
+  if(topVoted.length>1){
+    const tkey='votetie'+(r.num||1)+'-'+(r.dayNum||0)+'-'+topVoted.slice().sort().join('_');
+    if(narratedKeys.has(tkey)) return;
+    narratedKeys.add(tkey);
+    const names=topVoted.map(playerNameOf);
+    const listed=names.length>1 ? names.slice(0,-1).join(', ')+' and '+names[names.length-1] : names[0];
+    const impIn = mafiaMode ? topVoted.includes(r.mafiaPid) : topVoted.some(p=>impListOf(r).includes(p));
+    lastNarration='';
+    narrate(flav(FLAV_VOTE_INTRO));
+    narrate(flav(FLAV_TIE_NAMED, listed));
+    setTimeout(()=>{
+      lastNarration='';
+      narrate(flav(FLAV_TIE));
+      narrate(flav(impIn?FLAV_TIE_IMP_IN:FLAV_TIE_IMP_OUT));
+    }, 2200);
+    return;
+  }
   const target=topVoted[0];
   const key='vote'+(r.num||1)+'-'+(r.dayNum||0)+'-'+target;
   if(narratedKeys.has(key)) return;
@@ -2631,7 +2650,31 @@ const FLAV_MAFIA_WIN=[
 const FLAV_TIE=[
  "The vote was tied. Nobody dies today. Everyone is suspicious of everyone.",
  "A tie. The town can't agree, so the town does nothing. Classic.",
- "Deadlock. No one is thrown out. The mafia is quietly delighted."
+ "Deadlock. No one is thrown out. The mafia is quietly delighted.",
+ "It's a tie. Congratulations, you've achieved absolutely nothing.",
+ "Dead heat. Nobody goes. Everybody stews.",
+ "A perfect split. The village has decided to decide nothing.",
+ "Tied. You lot couldn't agree on a takeaway, let alone a murderer.",
+ "The vote is deadlocked. Somebody in here is very relieved right now."
+];
+const FLAV_TIE_NAMED=[
+ "It's a dead heat between {N}.",
+ "The votes are split between {N}.",
+ "You couldn't separate them — {N} are tied.",
+ "It's level pegging between {N}.",
+ "{N} are locked together at the top."
+];
+const FLAV_TIE_IMP_IN=[
+ "And the imposter was standing right there among them. They scrape through.",
+ "One of those names was the imposter. So close, and yet.",
+ "The imposter was in that group. They walk away with a fright and a couple of points.",
+ "You had them. You genuinely had them. And you couldn't agree."
+];
+const FLAV_TIE_IMP_OUT=[
+ "And not one of them was the imposter. Back to square one.",
+ "Neither of them did it. The imposter is having a lovely time.",
+ "All innocent. The imposter didn't even get a vote.",
+ "Completely wrong, both of you. The imposter is still hiding in plain sight."
 ];
 /* Remember what each bank has already used so lines don't repeat until
    the bank is exhausted — plain random kept serving the same few. */
@@ -2652,8 +2695,8 @@ function flav(list, name, other){
 
 /* ═══════════════ MAFIA MODE ═══════════════ */
 const MAFIA_ROLES={
-  medic:{emoji:'🩺', name:'Medic', desc:'Each night, shield one player from the kill. You may shield yourself.'},
-  angel:{emoji:'👼', name:'Angel', desc:'The first civilian to die returns as a guardian, shielding one player each night.'},
+  medic:{emoji:'🩺', name:'Medic', desc:'Every night, shield one player from the kill. You may shield yourself.'},
+  angel:{emoji:'👼', name:'Angel', desc:'The first civilian to die returns as a guardian, shielding one player each night (until 3 players are left).'},
   detective:{emoji:'🔍', name:'Detective', desc:'Each night, investigate one player: mafia or not.'},
   sheriff:{emoji:'🤠', name:'Sheriff', desc:'One bullet, any time. Shoot the mafia and they die. Shoot a civilian and YOU die.'},
   hunter:{emoji:'🏹', name:'Hunter', desc:'When you die, you take one player down with you.'},
@@ -2666,8 +2709,10 @@ const MAFIA_ODDS_KEYS=['medic','angel','detective','sheriff','hunter','jester','
 /* roles the mafia can try to guess (angel isn't dealt at the start) */
 const MAFIA_GUESSABLE=['medic','detective','sheriff','hunter','jester','mayor','undertaker'];
 
-/* Medic and Angel switch off at 3 players or fewer — too strong late */
-function shieldsAllowed(aliveCount){ return aliveCount>3; }
+/* The Medic protects someone every single night for as long as they're alive.
+   Only the Angel — a dead player still shielding — switches off at 3 left,
+   where it would be far too strong. */
+function angelAllowed(aliveCount){ return aliveCount>3; }
 
 function dealMafiaRound(pids, st, num){
   const mafiaPid=pick(pids);
@@ -2699,10 +2744,9 @@ function pidWithRole(r, key){ return Object.keys(r.roles||{}).find(p=>r.roles[p]
 function activeShielder(r, pids){
   /* Medic while alive, otherwise the Angel (a dead civilian granted the power) */
   const alive=aliveOf(r,pids);
-  if(!shieldsAllowed(alive.length)) return null;
   const medic=pidWithRole(r,'medic');
   if(r.medicOn && medic && alive.includes(medic)) return medic;
-  if(r.angelOn && r.angelPid && !alive.includes(r.angelPid)) return r.angelPid;
+  if(r.angelOn && r.angelPid && !alive.includes(r.angelPid) && angelAllowed(alive.length)) return r.angelPid;
   return null;
 }
 
@@ -2902,6 +2946,7 @@ async function resolveMafiaVote(){
   const {tally}=computeVoteResults(r, alive);
   const max=Math.max(0,...Object.values(tally));
   const top=Object.keys(tally).filter(p=>tally[p]===max && max>0);
+  narrateVoteResult(r, alive, true);
   await db.ref(base+'lastVote').set({top, tie:top.length!==1, day:r.dayNum||1});
   if(top.length!==1){
     await db.ref(base+'votes').remove();
@@ -2912,7 +2957,6 @@ async function resolveMafiaVote(){
     return;
   }
   const out=top[0];
-  narrateVoteResult(Object.assign({}, r, {votes:r.votes}), alive, true);
   if((r.roles||{})[out]==='jester'){
     await db.ref('games/'+CODE+'/scores/'+out).set((game.scores?.[out]||0)+4);
   }
@@ -3080,11 +3124,12 @@ function renderMafiaPanel(r, pids, players){
       html+='<div class="elim-banner">'+icon+' '+esc(txt)+'</div>';
       if(r.phase==='day' || r.phase==='reveal') narrateOnce(key, txt);
     });
+    /* shown only — the tie is narrated live when the vote resolves,
+       otherwise it would be read out a whole night late */
     if(r.lastVote && r.lastVote.tie && r.lastVote.day===(r.dayNum||1)-1){
       const key='tie'+(r.num||1)+'-'+r.lastVote.day;
-      if(!flavCache[key]) flavCache[key]=flav(FLAV_TIE);
+      if(!flavCache[key]) flavCache[key]='The vote tied — nobody was voted out.';
       html+='<div class="elim-banner">🤝 '+esc(flavCache[key])+'</div>';
-      narrateOnce(key, flavCache[key]);
     }
   }
 
