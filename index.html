@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -144,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v14</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v19</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -1072,14 +1071,10 @@ function ensureAudio(){
   try{
     if(!audioCtx || audioCtx.state==='closed') audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state!=='running') audioCtx.resume();
-    /* iPhone trick: a silent looping <audio> switches Safari into "playback"
-       mode so Web Audio stays audible even with the ringer switch on silent,
-       and keeps the session alive after the screen has been locked. */
-    if(!silentEl){
+    /* (the old silent-audio trick was removed: keeping Web Audio alive
+       permanently stops iOS from playing speech synthesis at all) */
+    if(false){
       silentEl=document.createElement('audio');
-      silentEl.setAttribute('playsinline','');
-      silentEl.loop=true;
-      silentEl.volume=0.01;
       silentEl.src='data:audio/wav;base64,UklGRtQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YbAEAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA=';
       const pr=silentEl.play();
       if(pr) pr.catch(()=>{ silentEl=null; }); /* retry on the next tap */
@@ -2161,10 +2156,29 @@ function renderVotePanel(r, pids, players){
   $('voteProgress').textContent=voted+'/'+pids.length+' votes in';
 }
 
+function narrateVoteResult(r, pids, mafiaMode){
+  if(!IS_HOST) return;
+  const {topVoted}=computeVoteResults(r, pids);
+  if(!topVoted || topVoted.length!==1) return;
+  const target=topVoted[0];
+  const key='vote'+(r.num||1)+'-'+(r.dayNum||0)+'-'+target;
+  if(narratedKeys.has(key)) return;
+  narratedKeys.add(key);
+  const nm=playerNameOf(target);
+  const guilty = mafiaMode ? target===r.mafiaPid : impListOf(r).includes(target);
+  const payoff = mafiaMode
+    ? flav(guilty?FLAV_VOTE_MAFIA_GUILTY:FLAV_VOTE_MAFIA_INNOCENT, nm)
+    : flav(guilty?FLAV_VOTE_GUILTY:FLAV_VOTE_INNOCENT, nm);
+  lastNarration='';
+  narrate(flav(FLAV_VOTE_INTRO));
+  setTimeout(()=>{ lastNarration=''; narrate(flav(FLAV_VOTE_NAMED, nm)); }, 2600);
+  setTimeout(()=>{ lastNarration=''; narrate(payoff); }, 6200);   /* the dramatic pause */
+}
 function renderResultPanel(r, pids, players){
   $('resultPanel').style.display='block';
   const {tally, outcome}=computeVoteResults(r, pids);
   const impName=playerNameOf(r.impPid);
+  narrateVoteResult(r, pids, false);
   const verdict = outcome==='caught' ? 'CAUGHT! Correct voters +2'
     : outcome==='tied' ? 'TIED VOTE! '+esc(impName)+' scrapes +2 · correct voters +2'
     : 'GOT AWAY WITH IT! '+esc(impName)+' +5 · correct voters +2';
@@ -2367,32 +2381,67 @@ function renderArtistPanel(r, pids, players){
 
 /* ═══════════════ MAFIA FLAVOUR TEXT ═══════════════
    {N} = victim, {K} = other name where needed. Narrated aloud AND shown. */
+/* ONE pool for every death — mafia kills, Sheriff shots, Hunter revenge,
+   role-guess kills. If the vague lines were only used for some causes,
+   the vagueness itself would be a tell. Now nobody can tell them apart. */
 const FLAV_KILL=[
+ "{N} choked on a banana trying to see how much they could fit in at once. Nobody stopped them.",
  "{N} was smothered with a pillow in their sleep. Sweet dreams.",
  "{N} was found face down in a bowl of cereal. Tragic. Soggy.",
+ "{N} tried to prove they could still do a backflip. They could not.",
+ "{N} died attempting to microwave a fork. They were warned. Repeatedly.",
+ "{N} was crushed by their own record collection. It was alphabetised, at least.",
+ "{N} bet someone they could eat a whole jar of pickled onions. They won the bet. Barely. Then didn't.",
+ "{N} leaned back too far on a plastic garden chair. That's it. That's the whole story.",
  "{N} took a bite of a suspicious sausage roll. It was their last.",
  "{N} was pushed down the stairs. The stairs deny everything.",
  "{N} answered the door at 3am. Rookie mistake.",
- "{N} was last seen going to check on a strange noise. Never do that.",
+ "{N} went to check on a strange noise. Never do that.",
  "{N} choked on a Yorkshire pudding. The gravy was innocent.",
  "{N} was found in the wheelie bin. Bin day was yesterday.",
- "{N} was electrocuted by a phone charger. A cheap one, obviously.",
+ "{N} was electrocuted by a cheap phone charger. Three quid, that charger.",
  "{N} was flattened by a falling wardrobe. Flat-pack revenge.",
  "{N} went for a midnight swim. The pool was empty.",
- "{N} was poisoned by a dodgy kebab. Two in the morning, of course.",
+ "{N} was poisoned by a dodgy kebab at two in the morning.",
  "{N} slipped on a banana skin. It was placed there deliberately.",
- "{N} was suffocated with a beanbag. Undignified but effective.",
- "{N} was taken out by a rogue shopping trolley. It gathered speed.",
- "{N} was found frozen in the chest freezer, clutching a Magnum.",
+ "{N} was taken out by a runaway shopping trolley. It really picked up speed.",
+ "{N} was found frozen in the chest freezer, still clutching a Magnum.",
  "{N} was crushed by a vending machine. It didn't even drop the crisps.",
- "{N} was last seen arguing with the mafia about the bill. They lost.",
- "{N} was buried under a pile of laundry. It had been building for weeks.",
  "{N} drank the milk. Nobody had checked the date.",
- "{N} was strangled with a phone charger cable. Ironic, given the battery anxiety.",
  "{N} sat on a whoopee cushion. It was not a whoopee cushion.",
- "{N} was pecked to death by seagulls. Someone left chips on their chest.",
+ "{N} was pecked to death by seagulls after leaving chips unattended.",
  "{N} tripped over the cat. The cat was working for the mafia.",
- "{N} was found under the trampoline. Nobody's asking questions."
+ "{N} tried to jump the fence to save four seconds. Cost them considerably more.",
+ "{N} attempted a TikTok dance on a wet kitchen floor. Filming continued.",
+ "{N} was mauled by a swan. They started it, in fairness.",
+ "{N} put their hand in the toaster to get the crumpet out. Standard.",
+ "{N} tried to carry all the shopping bags in one trip. A noble death.",
+ "{N} argued with a wasp near a first floor window. The wasp won.",
+ "{N} attempted to prove a hoverboard could handle stairs.",
+ "{N} was found under the trampoline. Nobody is asking questions.",
+ "{N} died reaching for the last Roses in the tin. Somebody else got there first.",
+ "{N} was lost to a wardrobe malfunction involving a very tight jumper.",
+ "{N} tried to hold in a sneeze while driving. Physics did the rest.",
+ "{N} was defeated by a bag of crisps that would not open, then suddenly did.",
+ "{N} died trying to plug in a charger in the dark. Never found the socket.",
+ "{N} attempted to eat a whole Terry's Chocolate Orange in one go.",
+ "{N} tried to change a lightbulb while standing on a swivel chair.",
+ "{N} was killed by a garden gnome falling from a great height. Nobody has explained the height.",
+ "{N} entered a chilli eating contest with a lot of confidence and very little training.",
+ "{N} was last seen saying 'watch this'. Those were the words.",
+ "{N} went to grab a charger cable in the dark and got the wrong wire entirely.",
+ "{N} attempted to parallel park with the confidence of someone who cannot.",
+ "{N} tried to sneak a sneaky midnight snack and was found buried in a cupboard of tins.",
+ "{N} died in a freak trampoline incident. There were no trampolines nearby.",
+ "{N} was taken out by an automatic door that had simply had enough.",
+ "{N} tried to microwave a boiled egg. We do not talk about the aftermath.",
+ "{N} attempted to open a bottle with their teeth. Bold. Fatal.",
+ "{N} was crushed under a mountain of unopened Amazon parcels.",
+ "{N} choked laughing at their own joke. Nobody else was laughing.",
+ "{N} tried to beat the microwave timer to the fridge and back. So close.",
+ "{N} is dead. Officially it's being recorded as 'one of those things'.",
+ "{N} has died. The coroner has written 'no idea' and gone home.",
+ "{N} didn't make it. Somebody knows why. Somebody isn't telling."
 ];
 const FLAV_SAVE=[
  "The mafia crept up on {N} with a pillow — but smothered their feet by mistake. {N} lives, mildly annoyed.",
@@ -2443,6 +2492,140 @@ const FLAV_REVIVE=[
  "{N} has been dragged back from the other side. They look terrible, but they're alive.",
  "Against all odds, {N} coughs, blinks, and rejoins the town. Death was temporary.",
  "The Undertaker worked through the night. {N} lives again."
+];
+const FLAV_VOTE_INTRO=[
+ "The votes are in.",
+ "The town has spoken.",
+ "Pencils down. The votes are counted.",
+ "The results are in, and they're not pretty.",
+ "Well. Let's see what you've all done.",
+ "Right then. Let's see who you've thrown under the bus.",
+ "The votes are counted, the friendships are ruined.",
+ "Democracy has happened. Brace yourselves.",
+ "I've counted them twice. Sadly, they're the same both times.",
+ "The people have decided. The people are often wrong.",
+ "Votes locked in. No takebacks, no appeals.",
+ "Let's see whose mates have betrayed them.",
+ "The jury of your peers has reached a verdict.",
+ "Everybody's voted. Somebody's about to feel very silly.",
+ "Counting complete. Feelings will be hurt.",
+ "I hope you're all proud of yourselves. Here we go.",
+ "The results are in, and one of you is about to have a bad time.",
+ "Ballots counted. Alliances shattered.",
+ "You've all had your say. Let's see the damage.",
+ "The tribe has spoken. Sorry. Wrong show."
+];
+const FLAV_VOTE_NAMED=[
+ "With the majority vote... {N}.",
+ "You've chosen... {N}.",
+ "The finger points squarely at... {N}.",
+ "By popular demand... {N}.",
+ "{N} takes the most votes. Bold choice.",
+ "The name on everyone's lips... {N}.",
+ "Congratulations {N}, you're the most hated person in the room.",
+ "The mob has settled on... {N}.",
+ "It's {N}. It was always going to be {N}, wasn't it.",
+ "Most votes go to... {N}. Who is currently looking very uncomfortable.",
+ "Step forward, {N}. Your peers have selected you.",
+ "{N} wins the vote. It is not a prize.",
+ "The crowd chants one name... {N}.",
+ "{N} has been served up on a platter.",
+ "You've all landed on {N}. Let's see if that was clever or catastrophic.",
+ "{N}, the room has decided you're the problem.",
+ "Sorry {N}. It's you.",
+ "The votes stack up against... {N}."
+];
+const FLAV_VOTE_GUILTY=[
+ "{N} was the imposter. Absolutely nailed it.",
+ "{N} was the imposter. The town wins, and {N} has some explaining to do.",
+ "{N} was guilty all along. Somebody was paying attention.",
+ "It was {N}. Justice, served cold.",
+ "{N} was the imposter. That was genuinely good detective work.",
+ "{N} was the imposter. And they were doing so well until they weren't.",
+ "Correct. {N} is the imposter. {N}, your poker face needs work.",
+ "{N} was bluffing the entire time — and you saw straight through it.",
+ "{N} was the imposter. Caught red-handed and slightly embarrassed.",
+ "It was {N}! The clue was the sweating.",
+ "{N} was the imposter. Somebody in this room should be a detective.",
+ "Guilty. {N} was faking it from the very first word.",
+ "{N} was the imposter, and honestly, that was never subtle.",
+ "You got them. {N} was the imposter all along.",
+ "{N} is the imposter. Take a bow, everyone."
+];
+const FLAV_VOTE_INNOCENT=[
+ "{N} was completely innocent. Well done, everyone.",
+ "{N} was innocent. The imposter is still out there, laughing.",
+ "{N} did nothing wrong. You've made a terrible mistake.",
+ "{N} was as innocent as they come. Awkward.",
+ "{N} was innocent. Somewhere, the real imposter is trying not to smile.",
+ "{N} was not the imposter. Not even slightly. Brilliant work, team.",
+ "Wrong. {N} was innocent, and now everyone feels a bit silly.",
+ "{N} was innocent. That's a spectacular own goal.",
+ "{N} was telling the truth the whole time. Nobody believed them.",
+ "{N} was innocent. I'd like to apologise to {N} on everyone's behalf.",
+ "You've just thrown out {N}, who was completely innocent. Outstanding.",
+ "{N} was innocent. The imposter voted with you, by the way.",
+ "Not the imposter. {N} was clean. This is going badly.",
+ "{N} was innocent, and the imposter is absolutely thriving right now.",
+ "{N} did nothing. Literally nothing. You've made an enemy for life."
+];
+const FLAV_VOTE_MAFIA_GUILTY=[
+ "{N} was the mafia. The town survives another day.",
+ "{N} was the killer all along. Beautiful work.",
+ "It was {N}. The village can sleep easy tonight.",
+ "{N} was the mafia. Somebody finally put the pieces together.",
+ "Correct — {N} was the killer. The town is safe, and slightly traumatised.",
+ "{N} was the mafia. All those murders, solved by a show of hands.",
+ "Guilty. {N} has been dragged out of the village kicking and screaming.",
+ "It was {N}! The town wins, and {N} owes everyone an apology.",
+ "{N} was the mafia. Justice, at last, with a lot of shouting.",
+ "You got them. {N} was the killer, and the nights are safe again."
+];
+const FLAV_VOTE_MAFIA_INNOCENT=[
+ "{N} was an innocent civilian. The mafia is delighted.",
+ "{N} was completely innocent. That's blood on your hands.",
+ "{N} never hurt anyone. The killer is still among you.",
+ "{N} was innocent. The mafia voted with the rest of you, obviously.",
+ "You've just lynched {N}, who was entirely innocent. The killer says thank you.",
+ "{N} was a civilian. The real mafia is having a wonderful evening.",
+ "Innocent. {N} did nothing but get slightly too defensive.",
+ "{N} was innocent. Well, that's one less person to protect you tonight.",
+ "Wrong again. {N} was a civilian, and the body count continues.",
+ "{N} was innocent. The mafia would like to thank the academy.",
+ "You've killed an innocent. {N} will be remembered. Briefly.",
+ "{N} was a civilian. The murderer is still sitting right there."
+];
+const FLAV_CREW_WIN=[
+ "The imposter has been caught. The crew wins.",
+ "That's it — the imposter is exposed. Crew takes the win.",
+ "The imposter is out. Well played, everyone.",
+ "Caught, cornered and finished. The crew wins this one."
+];
+const FLAV_IMP_WIN=[
+ "The imposter has survived to the end. They win.",
+ "Nobody caught them. The imposter walks away victorious.",
+ "The imposter made it to the final two. Flawless.",
+ "You had so many chances. The imposter wins."
+];
+const FLAV_TOWN_WIN=[
+ "The mafia is dead. The village is safe. Somebody put the kettle on.",
+ "It's over — the killer has been caught. The town survives.",
+ "The mafia has fallen. Sleep well tonight, all of you.",
+ "Justice is done. The village wins, and the nightmares stop.",
+ "The killer is finished. The town wins — barely, but a win's a win.",
+ "The mafia is out. The village celebrates, then quietly checks the locks anyway.",
+ "Town victory. You found the murderer before the murderer found all of you.",
+ "The reign of terror is over. The village wins."
+];
+const FLAV_MAFIA_WIN=[
+ "There's nobody left to stop them. The mafia wins.",
+ "The village is empty and the killer is still standing. Mafia wins.",
+ "It's over. The mafia has picked you off one by one, and won.",
+ "Nobody suspected a thing. The mafia wins, completely unchallenged.",
+ "The killer walks away without a scratch. Mafia victory.",
+ "You never stood a chance. The mafia wins the night, and the village.",
+ "Last one standing is the one who did it. The mafia wins.",
+ "The village trusted the wrong people, right to the very end. Mafia wins."
 ];
 const FLAV_TIE=[
  "The vote was tied. Nobody dies today. Everyone is suspicious of everyone.",
@@ -2686,8 +2869,13 @@ async function mafiaHostTick(){
 }
 function testNarration(){
   lastNarration='';
+  const vs=(window.speechSynthesis && window.speechSynthesis.getVoices())||[];
   narrate('Narrator test. Everyone, go to sleep.');
-  toast('If you heard nothing, turn the ringer switch on and check the volume.');
+  setTimeout(()=>{
+    if(!window.speechSynthesis) toast('This browser has no speech support.');
+    else if(!vs.length) toast('No voices loaded yet — tap Test again.');
+    else toast('Voice: '+(pickedVoice?pickedVoice.name:vs[0].name)+' · if silent, check the ringer switch.');
+  }, 700);
 }
 async function hostMafiaVote(){
   if(!IS_HOST) return;
@@ -2711,6 +2899,7 @@ async function resolveMafiaVote(){
     return;
   }
   const out=top[0];
+  narrateVoteResult(Object.assign({}, r, {votes:r.votes}), alive, true);
   if((r.roles||{})[out]==='jester'){
     await db.ref('games/'+CODE+'/scores/'+out).set((game.scores?.[out]||0)+4);
   }
@@ -2747,41 +2936,72 @@ let lastNarration='', speechReady=false;
 function unlockSpeech(){
   if(speechReady || !window.speechSynthesis) return;
   try{
-    const u=new SpeechSynthesisUtterance(' ');
-    u.volume=0; u.rate=1;
+    const u=new SpeechSynthesisUtterance('.');
+    u.volume=0.01; u.rate=2;
     window.speechSynthesis.speak(u);
+    chooseVoice();
     speechReady=true;
   }catch(e){}
 }
 document.addEventListener('touchstart', unlockSpeech, true);
 document.addEventListener('click', unlockSpeech, true);
 
+let pickedVoice=null;
+function chooseVoice(){
+  if(!window.speechSynthesis) return null;
+  const vs=window.speechSynthesis.getVoices()||[];
+  if(!vs.length) return null;
+  pickedVoice = vs.find(v=>/en-GB/i.test(v.lang) && /daniel|male/i.test(v.name))
+             || vs.find(v=>/en-GB/i.test(v.lang))
+             || vs.find(v=>/^en/i.test(v.lang))
+             || vs[0];
+  return pickedVoice;
+}
+if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=chooseVoice;
+
 function narrate(text){
   if(!IS_HOST) return;
   if(text===lastNarration) return;
   lastNarration=text;
   setTimeout(()=>{ if(lastNarration===text) lastNarration=''; }, 3000);
-  try{
-    if(window.speechSynthesis){
-      unlockSpeech();
-      /* Safari parks the speech engine when idle — a pause/resume wakes it */
-      try{ window.speechSynthesis.resume(); }catch(e){}
-      const u=new SpeechSynthesisUtterance(text);
-      u.rate=0.85; u.pitch=0.85; u.volume=1; u.lang='en-GB';
-      u.onerror=()=>{ speechReady=false; };
-      window.speechSynthesis.speak(u);
-    }
-  }catch(e){}
-  /* short attention cue, quiet enough to talk over */
-  if(/sleep/i.test(text)){ tone(420,0.25,0.16,'sine',0); }
-  else if(/wake up/i.test(text)){ tone(760,0.18,0.16,'sine',0); }
-  else { tone(620,0.15,0.12,'sine',0); }
   haptic('heavy');
+  /* cue tone first, then hand the audio hardware over to the voice —
+     iOS will not speak while Web Audio is holding the output */
+  if(/sleep/i.test(text)) tone(420,0.22,0.16,'sine',0);
+  else if(/wake up/i.test(text)) tone(760,0.16,0.16,'sine',0);
+  else tone(620,0.14,0.12,'sine',0);
+  setTimeout(()=>speakNow(text), 320);
+}
+function speakNow(text){
+  try{
+    if(!window.speechSynthesis) return;
+    try{ if(audioCtx && audioCtx.state==='running') audioCtx.suspend(); }catch(e){}
+    window.speechSynthesis.cancel();          /* clear anything stuck in the queue */
+    const u=new SpeechSynthesisUtterance(text);
+    if(!pickedVoice) chooseVoice();
+    if(pickedVoice) u.voice=pickedVoice;
+    u.rate=0.9; u.pitch=0.9; u.volume=1; u.lang='en-GB';
+    const restore=()=>{ try{ audioCtx && audioCtx.resume(); }catch(e){} };
+    u.onend=restore; u.onerror=()=>{ speechReady=false; restore(); };
+    window.speechSynthesis.speak(u);
+  }catch(e){}
 }
 
 function selOpts(list, exclude){
   return list.filter(p=>!exclude||!exclude.includes(p))
     .map(p=>'<option value="'+p+'">'+esc(playerNameOf(p))+'</option>').join('');
+}
+
+/* Endgame call: let the last death line land first, then announce the winner
+   and name the killer. */
+function narrateMafiaEnd(r){
+  if(!IS_HOST) return;
+  const key='mafiaend'+(r.num||1);
+  if(narratedKeys.has(key)) return;
+  narratedKeys.add(key);
+  const win = r.result==='town' ? flav(FLAV_TOWN_WIN) : flav(FLAV_MAFIA_WIN);
+  setTimeout(()=>{ lastNarration=''; narrate(win); }, 4200);
+  setTimeout(()=>{ lastNarration=''; narrate('The mafia was '+playerNameOf(r.mafiaPid)+'.'); }, 8200);
 }
 
 function renderMafiaPanel(r, pids, players){
@@ -2804,24 +3024,21 @@ function renderMafiaPanel(r, pids, players){
       const nm=(l.dead||[]).map(playerNameOf).join(' and ');
       const key='flav'+(r.num||1)+'-'+(l.day||1)+'-'+li+'-'+l.reason;
       if(!flavCache[key]){
-        const src = l.reason==='shielded' ? FLAV_SAVE
-          : l.reason==='mafia-kill' ? FLAV_KILL
+        /* sheriff shots, role-guesses and hunter kills stay anonymous in play */
+        /* every death type draws from the same pool so the wording is never a tell */
+        const anyDeath=['mafia-kill','sheriff-hit','sheriff-miss','guess-hit','guess-backfire','hunter'].includes(l.reason);
+        const src = anyDeath ? FLAV_KILL
+          : l.reason==='shielded' ? FLAV_SAVE
           : l.reason==='lynch' ? FLAV_LYNCH
-          : l.reason==='sheriff-hit' ? FLAV_SHERIFF_HIT
-          : l.reason==='sheriff-miss' ? FLAV_SHERIFF_MISS
-          : l.reason==='guess-hit' ? FLAV_GUESS_HIT
-          : l.reason==='guess-backfire' ? FLAV_GUESS_BACK
-          : l.reason==='hunter' ? FLAV_HUNTER
           : l.reason==='revive' ? FLAV_REVIVE : null;
         if(src) flavCache[key]=flav(src, l.reason==='shielded'?playerNameOf(l.target):nm);
       }
       const txt=flavCache[key];
       if(!txt) return;
-      const icon = l.reason==='shielded'?'🩺':l.reason==='mafia-kill'?'💀':l.reason==='lynch'?'⚖️'
-        :l.reason==='sheriff-hit'||l.reason==='sheriff-miss'?'🤠':l.reason==='hunter'?'🏹'
-        :l.reason==='revive'?'🕯️':'💥';
+      const icon = l.reason==='shielded'?'🩺':l.reason==='lynch'?'⚖️'
+        :l.reason==='revive'?'🕯️':'💀';   /* everything else is just a death */
       html+='<div class="elim-banner">'+icon+' '+esc(txt)+'</div>';
-      if(r.phase==='day') narrateOnce(key, txt);
+      if(r.phase==='day' || r.phase==='reveal') narrateOnce(key, txt);
     });
     if(r.lastVote && r.lastVote.tie && r.lastVote.day===(r.dayNum||1)-1){
       const key='tie'+(r.num||1)+'-'+r.lastVote.day;
@@ -2907,10 +3124,28 @@ function renderMafiaPanel(r, pids, players){
   });
 
   if(r.phase==='reveal'){
+    narrateMafiaEnd(r);
     html+='<div class="revealbox"><div class="muted">The mafia was</div><div class="w">'+esc(playerNameOf(r.mafiaPid))+'</div>'+
       '<div class="imps">'+(r.result==='town'?'🎉 TOWN WINS — survivors +2':'😈 MAFIA WINS — +6')+'</div></div>';
     const roleBits=Object.entries(r.roles||{}).map(([pid,k])=>MAFIA_ROLES[k].emoji+' '+esc(playerNameOf(pid))+' — '+MAFIA_ROLES[k].name).join('<br>');
     if(roleBits) html+='<div class="qcard"><div class="qname">Roles</div><div class="muted">'+roleBits+'</div></div>';
+    /* now everyone finds out what actually happened each night */
+    const truth=(r.log||[]).map(l=>{
+      const nm=(l.dead||[]).map(playerNameOf).map(esc).join(' & ');
+      switch(l.reason){
+        case 'mafia-kill': return '💀 Night '+l.day+': the mafia killed '+nm+'.';
+        case 'shielded':   return '🩺 Night '+l.day+': the mafia went for '+esc(playerNameOf(l.target))+' — shielded just in time.';
+        case 'lynch':      return '⚖️ Day '+l.day+': the town voted out '+nm+'.';
+        case 'sheriff-hit':return '🤠 Day '+l.day+': the Sheriff fired — and hit the mafia.';
+        case 'sheriff-miss':return '🤠 Day '+l.day+': the Sheriff shot an innocent and died for it.';
+        case 'guess-hit':  return '🎯 Night '+l.day+': the mafia guessed a role right and killed '+nm+'.';
+        case 'guess-backfire': return '💥 Night '+l.day+': the mafia guessed wrong and killed themselves.';
+        case 'hunter':     return '🏹 Day '+l.day+': the Hunter took '+nm+' down with them.';
+        case 'revive':     return '🕯️ Day '+l.day+': the Undertaker brought '+nm+' back.';
+        default: return '';
+      }
+    }).filter(Boolean).join('<br>');
+    if(truth) html+='<div class="qcard"><div class="qname">What actually happened</div><div class="muted">'+truth+'</div></div>';
     if(r.lovers) html+='<div class="muted">💕 Lovers: '+r.lovers.map(playerNameOf).map(esc).join(' & ')+'</div>';
   }
 
@@ -3041,11 +3276,19 @@ function renderPlay(){
 
   /* reveal (Word Imposter only) */
   if(mode==='word' && (r.revealed || r.phase==='reveal')){
+    if(r.phase==='reveal') narrateVoteResult(r, pids, false);
     $('revealPanel').style.display='block';
     $('revealWord').textContent=r.word||'';
     const impNames=(r.imposters||[]).map(pid=>players[pid]?.name||'?').join(' & ');
     let extra='';
     if(r.playStyle==='elimination' && r.elimResult){
+      const ekey='elimend'+(r.num||1);
+      if(IS_HOST && !narratedKeys.has(ekey)){
+        narratedKeys.add(ekey);
+        const line=flav(r.elimResult==='crew'?FLAV_CREW_WIN:FLAV_IMP_WIN);
+        setTimeout(()=>{ lastNarration=''; narrate(line); }, 7200);
+        setTimeout(()=>{ lastNarration=''; narrate('The word was '+(r.word||'')+'.'); }, 11000);
+      }
       extra += r.elimResult==='crew' ? '<div>🎉 CREW WINS — imposter voted out! Correct voters +2</div>'
                                      : '<div>😈 IMPOSTER WINS — survived to the final two! +5</div>';
     }else if(r.phase==='reveal'){
