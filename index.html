@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v22</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v25</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -242,7 +242,7 @@
       <div class="field" id="sMafiaField" style="display:none">
         <label>Mafia roles (chance per game)</label>
         <table class="roles-tbl"><tbody id="sMafiaBody"></tbody></table>
-        <span class="muted">The Medic shields someone every night. The Angel switches off at 3 players left.</span>
+        <span class="muted">Medic and Angel shield someone every night, but both switch off once 3 players remain.</span>
       </div>
       <div class="field" id="sRolesField"><label>Special roles (chance per round)</label>
         <table class="roles-tbl"><tbody id="sRolesBody"></tbody></table>
@@ -2511,7 +2511,34 @@ const FLAV_REVIVE=[
  "A candle was lit in the dark, and {N} sat bolt upright. {N} is back among the living.",
  "{N} has been dragged back from the other side. They look terrible, but they're alive.",
  "Against all odds, {N} coughs, blinks, and rejoins the town. Death was temporary.",
- "The Undertaker worked through the night. {N} lives again."
+ "{N} has returned from the dead, complaining about the service.",
+ "Somebody has pulled {N} back from the brink. {N} would like everyone to know it was very cold over there.",
+ "{N} is alive again. Nobody is going to explain how, and nobody should ask.",
+ "The grave has spat {N} straight back out. Apparently they were too annoying for the afterlife.",
+ "{N} rises. Slightly damp, deeply confused, but definitely rising.",
+ "Death has reviewed {N}'s application and rejected it. {N} is back.",
+ "{N} has been resurrected. The village is thrilled. Mostly.",
+ "A miracle. {N} lives. Somebody in this room has been very busy.",
+ "{N} was dead. {N} is now, inexplicably, not dead.",
+ "{N} has clawed their way back into the game. Someone owed them a favour.",
+ "Breaking news: {N} is no longer deceased. Back to the accusations."
+];
+/* When a Lover follows their partner into the grave */
+const FLAV_HEARTBREAK=[
+ "{N} couldn't go on without them, and died of a broken heart moments later.",
+ "{N} took one look at the body and simply gave up. Love is a terrible business.",
+ "{N} has followed them. Whatever they had, it was clearly serious.",
+ "{N} died of heartbreak on the spot. Somebody should have seen that coming.",
+ "And {N} went with them. Two for the price of one. Romance!",
+ "{N} collapsed the moment they heard. Two names, one very awkward funeral."
+];
+/* When the town lynches someone who WANTED it */
+const FLAV_JESTER_WIN=[
+ "{N} was the Jester. That's exactly what they wanted, and you all fell for it. Four points.",
+ "{N} was the Jester. They played you like a fiddle and you thanked them for it.",
+ "{N} was the Jester — they were being annoying on purpose, and it worked perfectly.",
+ "{N} was the Jester. They wanted the votes. You gave them the votes. Marvellous.",
+ "Bad news: {N} was the Jester, and you've just handed them the win."
 ];
 const FLAV_VOTE_INTRO=[
  "The votes are in.",
@@ -2695,8 +2722,8 @@ function flav(list, name, other){
 
 /* ═══════════════ MAFIA MODE ═══════════════ */
 const MAFIA_ROLES={
-  medic:{emoji:'🩺', name:'Medic', desc:'Every night, shield one player from the kill. You may shield yourself.'},
-  angel:{emoji:'👼', name:'Angel', desc:'The first civilian to die returns as a guardian, shielding one player each night (until 3 players are left).'},
+  medic:{emoji:'🩺', name:'Medic', desc:'Every night, shield one player from the kill. You may shield yourself. Stops at 3 players left.'},
+  angel:{emoji:'👼', name:'Angel', desc:'The first civilian to die returns as a guardian, shielding one player each night. Stops at 3 players left.'},
   detective:{emoji:'🔍', name:'Detective', desc:'Each night, investigate one player: mafia or not.'},
   sheriff:{emoji:'🤠', name:'Sheriff', desc:'One bullet, any time. Shoot the mafia and they die. Shoot a civilian and YOU die.'},
   hunter:{emoji:'🏹', name:'Hunter', desc:'When you die, you take one player down with you.'},
@@ -2709,10 +2736,9 @@ const MAFIA_ODDS_KEYS=['medic','angel','detective','sheriff','hunter','jester','
 /* roles the mafia can try to guess (angel isn't dealt at the start) */
 const MAFIA_GUESSABLE=['medic','detective','sheriff','hunter','jester','mayor','undertaker'];
 
-/* The Medic protects someone every single night for as long as they're alive.
-   Only the Angel — a dead player still shielding — switches off at 3 left,
-   where it would be far too strong. */
-function angelAllowed(aliveCount){ return aliveCount>3; }
+/* Shields switch off once only 3 players remain — a guaranteed save
+   that late in the game is unbeatable. Applies to Medic and Angel alike. */
+function shieldsAllowed(aliveCount){ return aliveCount>3; }
 
 function dealMafiaRound(pids, st, num){
   const mafiaPid=pick(pids);
@@ -2744,9 +2770,10 @@ function pidWithRole(r, key){ return Object.keys(r.roles||{}).find(p=>r.roles[p]
 function activeShielder(r, pids){
   /* Medic while alive, otherwise the Angel (a dead civilian granted the power) */
   const alive=aliveOf(r,pids);
+  if(!shieldsAllowed(alive.length)) return null;
   const medic=pidWithRole(r,'medic');
   if(r.medicOn && medic && alive.includes(medic)) return medic;
-  if(r.angelOn && r.angelPid && !alive.includes(r.angelPid) && angelAllowed(alive.length)) return r.angelPid;
+  if(r.angelOn && r.angelPid && !alive.includes(r.angelPid)) return r.angelPid;
   return null;
 }
 
@@ -2811,6 +2838,7 @@ async function applyDeaths(r, victims, reason){
   const pids=Object.keys(game.players||{});
   const base='games/'+CODE+'/round/';
   const dead=new Set();
+  const heartbroken=[];
   const queue=victims.filter(Boolean);
   while(queue.length){
     const v=queue.shift();
@@ -2818,7 +2846,7 @@ async function applyDeaths(r, victims, reason){
     dead.add(v);
     if((r.lovers||[]).includes(v)){
       const other=r.lovers.find(x=>x!==v);
-      if(other && !dead.has(other)) queue.push(other);
+      if(other && !dead.has(other)){ queue.push(other); heartbroken.push(other); }
     }
   }
   for(const d of dead) await db.ref(base+'eliminated/'+d).set(true);
@@ -2828,7 +2856,9 @@ async function applyDeaths(r, victims, reason){
     if(cand) await db.ref(base+'angelPid').set(cand);
   }
   const log=(r.log||[]).slice();
-  log.push({reason, dead:[...dead], day:r.dayNum||1});
+  const primary=[...dead].filter(d=>!heartbroken.includes(d));
+  log.push({reason, dead:primary.length?primary:[...dead], day:r.dayNum||1});
+  heartbroken.forEach(h=>log.push({reason:'heartbreak', dead:[h], day:r.dayNum||1}));
   await db.ref(base+'log').set(log);
   await checkMafiaWin(r, pids, dead);
   return dead;
@@ -2936,8 +2966,13 @@ function testNarration(){
 }
 async function hostMafiaVote(){
   if(!IS_HOST) return;
-  await db.ref('games/'+CODE+'/round/phase').set('vote');
-  narrate('Time to vote.');
+  unlockSpeech();
+  const busy = speaking || speechQueue.length>0 || pendingNarration>0;
+  if(busy) toast('Waiting for the narrator to finish...');
+  whenNarrationIdle(async ()=>{
+    await db.ref('games/'+CODE+'/round/phase').set('vote');
+    narrate('Time to vote.');
+  });
 }
 async function resolveMafiaVote(){
   const r=game.round, pids=Object.keys(game.players||{});
@@ -2959,6 +2994,9 @@ async function resolveMafiaVote(){
   const out=top[0];
   if((r.roles||{})[out]==='jester'){
     await db.ref('games/'+CODE+'/scores/'+out).set((game.scores?.[out]||0)+4);
+    const jlog=(r.log||[]).slice();
+    jlog.push({reason:'jester', dead:[out], day:r.dayNum||1});
+    await db.ref(base+'log').set(jlog);
   }
   const deadSet=await applyDeaths(r, [out], 'lynch');
   /* Hunter takes someone with them — host picks for simplicity if hunter dies */
@@ -2984,6 +3022,27 @@ function narrateOnce(key, text){
   if(!IS_HOST || narratedKeys.has(key)) return;
   narratedKeys.add(key);
   narrate(text);   /* the queue handles ordering — no manual delay needed */
+}
+
+/* Live, mid-game role actions (Undertaker etc.) announce a beat later so
+   the player has finished tapping before the room hears about it. */
+let pendingNarration=0;
+function narrateAfter(ms, key, text){
+  if(!IS_HOST || narratedKeys.has(key)) return;
+  narratedKeys.add(key);
+  pendingNarration++;
+  setTimeout(()=>{
+    narrate(text);
+    pendingNarration=Math.max(0, pendingNarration-1);
+  }, ms);
+}
+/* Wait for the narrator to be completely free — nothing queued, nothing
+   speaking, nothing scheduled — before starting a new sequence. */
+function whenNarrationIdle(cb, waitedMs){
+  const waited=waitedMs||0;
+  const busy = speaking || speechQueue.length>0 || pendingNarration>0;
+  if(busy && waited<20000){ setTimeout(()=>whenNarrationIdle(cb, waited+300), 300); return; }
+  cb();
 }
 
 /* ── Spoken narration (host phone = the narrator) ── */
@@ -3114,13 +3173,25 @@ function renderMafiaPanel(r, pids, players){
         const src = anyDeath ? FLAV_KILL
           : l.reason==='shielded' ? FLAV_SAVE
           : l.reason==='lynch' ? FLAV_LYNCH
+          : l.reason==='heartbreak' ? FLAV_HEARTBREAK
+          : l.reason==='jester' ? FLAV_JESTER_WIN
           : l.reason==='revive' ? FLAV_REVIVE : null;
         if(src) flavCache[key]=flav(src, l.reason==='shielded'?playerNameOf(l.target):nm);
       }
       const txt=flavCache[key];
       if(!txt) return;
       const icon = l.reason==='shielded'?'🩺':l.reason==='lynch'?'⚖️'
-        :l.reason==='revive'?'🕯️':'💀';   /* everything else is just a death */
+        :l.reason==='revive'?'🕯️':l.reason==='heartbreak'?'💔'
+        :l.reason==='jester'?'🤡':'💀';
+      /* Anything triggered live in the day — Undertaker revive, Sheriff shot,
+         Hunter revenge, a Lover following their partner — announces ~10s after
+         the tap, so the player has finished acting before the room hears it. */
+      const liveAction=['revive','sheriff-hit','sheriff-miss','hunter','heartbreak'].includes(l.reason);
+      if(liveAction && r.phase==='day'){
+        html+='<div class="elim-banner">'+icon+' '+esc(txt)+'</div>';
+        narrateAfter(10000, key, txt);
+        return;
+      }
       html+='<div class="elim-banner">'+icon+' '+esc(txt)+'</div>';
       if(r.phase==='day' || r.phase==='reveal') narrateOnce(key, txt);
     });
@@ -3171,7 +3242,8 @@ function renderMafiaPanel(r, pids, players){
       }
     });
     if(!html.includes('qcard')){
-      const waitTxt = r.nightStep==='start' ? 'Waiting for the host to start the night...'
+      const waitTxt = r.nightStep==='pending' ? 'Night is about to begin...'
+        : r.nightStep==='start' ? 'Waiting for the host to start the night...'
         : (shared && !privOpenFor) ? 'Tap your name above to check your night action.'
         : 'Eyes closed. Wait for the narrator...';
       html+='<p class="muted" style="text-align:center">'+waitTxt+'</p>';
@@ -3227,6 +3299,8 @@ function renderMafiaPanel(r, pids, players){
         case 'guess-backfire': return '💥 Night '+l.day+': the mafia guessed wrong and killed themselves.';
         case 'hunter':     return '🏹 Day '+l.day+': the Hunter took '+nm+' down with them.';
         case 'revive':     return '🕯️ Day '+l.day+': the Undertaker brought '+nm+' back.';
+        case 'heartbreak': return '💔 Day '+l.day+': '+nm+' died of heartbreak — they were a Lover.';
+        case 'jester':     return '🤡 Day '+l.day+': '+nm+' was the Jester and got exactly what they wanted.';
         default: return '';
       }
     }).filter(Boolean).join('<br>');
@@ -3234,7 +3308,7 @@ function renderMafiaPanel(r, pids, players){
     if(r.lovers) html+='<div class="muted">💕 Lovers: '+r.lovers.map(playerNameOf).map(esc).join(' & ')+'</div>';
   }
 
-  if(IS_HOST && r.phase==='night' && r.nightStep==='start'){
+  if(IS_HOST && r.phase==='night' && (r.nightStep==='start'||r.nightStep==='pending')){
     html+='<button class="btn primary big" style="margin-top:8px" onclick="hostSleepNow()">🌙 Everyone Go To Sleep</button>';
   }
   if(IS_HOST && r.phase==='day'){
