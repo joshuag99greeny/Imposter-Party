@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v19</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v20</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -1452,7 +1452,7 @@ async function hostStartRound(){
       if(pids.length<4) return toast('Mafia needs at least 4 players');
       round=dealMafiaRound(pids, st, num);
     }
-    secRunning=null; privOpenFor=null;
+    secRunning=null; privOpenFor=null; flushSpeech();
     await db.ref('games/'+CODE).update({status:'playing', round});
     haptic('medium');
     return;
@@ -2171,8 +2171,9 @@ function narrateVoteResult(r, pids, mafiaMode){
     : flav(guilty?FLAV_VOTE_GUILTY:FLAV_VOTE_INNOCENT, nm);
   lastNarration='';
   narrate(flav(FLAV_VOTE_INTRO));
-  setTimeout(()=>{ lastNarration=''; narrate(flav(FLAV_VOTE_NAMED, nm)); }, 2600);
-  setTimeout(()=>{ lastNarration=''; narrate(payoff); }, 6200);   /* the dramatic pause */
+  narrate(flav(FLAV_VOTE_NAMED, nm));
+  /* the dramatic pause before the verdict */
+  setTimeout(()=>{ lastNarration=''; narrate(payoff); }, 2200);
 }
 function renderResultPanel(r, pids, players){
   $('resultPanel').style.display='block';
@@ -2632,8 +2633,20 @@ const FLAV_TIE=[
  "A tie. The town can't agree, so the town does nothing. Classic.",
  "Deadlock. No one is thrown out. The mafia is quietly delighted."
 ];
+/* Remember what each bank has already used so lines don't repeat until
+   the bank is exhausted — plain random kept serving the same few. */
+const flavUsed=new Map();
+function pickFresh(list){
+  if(!list || !list.length) return '';
+  let used=flavUsed.get(list);
+  if(!used || used.size>=list.length){ used=new Set(); flavUsed.set(list, used); }
+  const fresh=list.filter((_,i)=>!used.has(i));
+  const choice=fresh[Math.floor(Math.random()*fresh.length)];
+  used.add(list.indexOf(choice));
+  return choice;
+}
 function flav(list, name, other){
-  let t=pick(list);
+  let t=pickFresh(list);
   return t.replace(/\{N\}/g, name||'someone').replace(/\{K\}/g, other||'someone');
 }
 
@@ -2926,7 +2939,7 @@ const narratedKeys=new Set();
 function narrateOnce(key, text){
   if(!IS_HOST || narratedKeys.has(key)) return;
   narratedKeys.add(key);
-  setTimeout(()=>narrate(text), 400);
+  narrate(text);   /* the queue handles ordering — no manual delay needed */
 }
 
 /* ── Spoken narration (host phone = the narrator) ── */
@@ -2959,32 +2972,59 @@ function chooseVoice(){
 }
 if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=chooseVoice;
 
+/* Lines queue up and play one after another — previously a new line
+   cancelled whatever was still being spoken (so "everyone wake up"
+   got cut off by the morning report). */
+let speechQueue=[], speaking=false;
 function narrate(text){
-  if(!IS_HOST) return;
+  if(!IS_HOST || !text) return;
   if(text===lastNarration) return;
   lastNarration=text;
   setTimeout(()=>{ if(lastNarration===text) lastNarration=''; }, 3000);
   haptic('heavy');
-  /* cue tone first, then hand the audio hardware over to the voice —
-     iOS will not speak while Web Audio is holding the output */
+  speechQueue.push(text);
+  if(!speaking) drainSpeech();
+}
+function drainSpeech(){
+  if(speaking) return;
+  const text=speechQueue.shift();
+  if(text===undefined){
+    speaking=false;
+    try{ audioCtx && audioCtx.resume(); }catch(e){}
+    return;
+  }
+  speaking=true;
+  /* short cue, then hand the audio output to the voice */
   if(/sleep/i.test(text)) tone(420,0.22,0.16,'sine',0);
   else if(/wake up/i.test(text)) tone(760,0.16,0.16,'sine',0);
   else tone(620,0.14,0.12,'sine',0);
-  setTimeout(()=>speakNow(text), 320);
+  setTimeout(()=>speakNow(text), 300);
+}
+function nextInQueue(){
+  speaking=false;
+  /* small breath between lines so they don't run together */
+  setTimeout(drainSpeech, 450);
+}
+function flushSpeech(){
+  speechQueue=[]; speaking=false; lastNarration='';
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
 }
 function speakNow(text){
   try{
-    if(!window.speechSynthesis) return;
+    if(!window.speechSynthesis){ nextInQueue(); return; }
     try{ if(audioCtx && audioCtx.state==='running') audioCtx.suspend(); }catch(e){}
-    window.speechSynthesis.cancel();          /* clear anything stuck in the queue */
     const u=new SpeechSynthesisUtterance(text);
     if(!pickedVoice) chooseVoice();
     if(pickedVoice) u.voice=pickedVoice;
     u.rate=0.9; u.pitch=0.9; u.volume=1; u.lang='en-GB';
-    const restore=()=>{ try{ audioCtx && audioCtx.resume(); }catch(e){} };
-    u.onend=restore; u.onerror=()=>{ speechReady=false; restore(); };
+    let done=false;
+    const finish=()=>{ if(done) return; done=true; nextInQueue(); };
+    u.onend=finish;
+    u.onerror=()=>{ speechReady=false; finish(); };
+    /* safety net: if the engine never reports back, move on anyway */
+    setTimeout(finish, Math.max(3000, text.length*95));
     window.speechSynthesis.speak(u);
-  }catch(e){}
+  }catch(e){ nextInQueue(); }
 }
 
 function selOpts(list, exclude){
@@ -3000,8 +3040,8 @@ function narrateMafiaEnd(r){
   if(narratedKeys.has(key)) return;
   narratedKeys.add(key);
   const win = r.result==='town' ? flav(FLAV_TOWN_WIN) : flav(FLAV_MAFIA_WIN);
-  setTimeout(()=>{ lastNarration=''; narrate(win); }, 4200);
-  setTimeout(()=>{ lastNarration=''; narrate('The mafia was '+playerNameOf(r.mafiaPid)+'.'); }, 8200);
+  /* queued behind the final death line, so nothing gets clipped */
+  setTimeout(()=>{ lastNarration=''; narrate(win); narrate('The mafia was '+playerNameOf(r.mafiaPid)+'.'); }, 1200);
 }
 
 function renderMafiaPanel(r, pids, players){
@@ -3286,8 +3326,7 @@ function renderPlay(){
       if(IS_HOST && !narratedKeys.has(ekey)){
         narratedKeys.add(ekey);
         const line=flav(r.elimResult==='crew'?FLAV_CREW_WIN:FLAV_IMP_WIN);
-        setTimeout(()=>{ lastNarration=''; narrate(line); }, 7200);
-        setTimeout(()=>{ lastNarration=''; narrate('The word was '+(r.word||'')+'.'); }, 11000);
+        setTimeout(()=>{ lastNarration=''; narrate(line); narrate('The word was '+(r.word||'')+'.'); }, 2200);
       }
       extra += r.elimResult==='crew' ? '<div>🎉 CREW WINS — imposter voted out! Correct voters +2</div>'
                                      : '<div>😈 IMPOSTER WINS — survived to the final two! +5</div>';
