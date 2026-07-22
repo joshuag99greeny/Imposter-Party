@@ -52,6 +52,13 @@
   .chip.you{border-color:#7b5cff;background:#efeaff;color:#5a37ff}
   .chip .kick{color:#ff5b7a;font-weight:900;cursor:pointer;padding:0 2px}
 
+  .whoboxes{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+  .whobox{appearance:none;border:none;width:100%;border-radius:16px;padding:20px 16px;cursor:pointer;
+    font-weight:1000;font-size:clamp(18px,5vw,24px);letter-spacing:1px;text-transform:uppercase;
+    color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.12);text-align:center}
+  .whobox .sm{display:block;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:none;opacity:.9;margin-top:4px}
+  .whobox.open{outline:4px solid #111;outline-offset:2px}
+  .whopanel{border:2px dashed #d7d2ff;border-radius:16px;padding:10px;margin-bottom:12px;background:#fbfaff}
   .secretwrap{display:flex;flex-direction:column;gap:12px}
   .secret .pname{font-weight:1000;font-size:clamp(18px,5vw,24px);letter-spacing:1px;text-transform:uppercase}
   .secret{
@@ -219,9 +226,12 @@
       <div class="field" id="sKnowField" style="display:none"><label>Imposters know each other</label>
         <div class="seg" id="sKnow"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
       </div>
-      <div class="field" id="sLoversField" style="display:none"><label>💕 Lovers (Elimination only)</label>
-        <div class="seg" id="sLovers"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
-        <span class="muted">Two secret crew members share their fate — vote one out and both go.</span>
+      <div class="field" id="sLoversField" style="display:none"><label>💕 Lovers (chance per round)</label>
+        <select id="sLoversOdds">
+          <option value="0">0%</option><option value="25">25%</option><option value="50">50%</option>
+          <option value="75">75%</option><option value="100">100%</option>
+        </select>
+        <span class="muted">Two players are secretly paired at random — if either dies, they both die.</span>
       </div>
       <div class="row" id="sImpRow">
         <div class="field" style="flex:1"><label>Imposters</label><input type="number" id="sImp" min="1" value="1"></div>
@@ -290,6 +300,7 @@
     </section>
 
     <section class="panel">
+      <div class="whoboxes" id="whoBoxes" style="display:none"></div>
       <div class="secretwrap" id="secretCards"></div>
       <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
       <div id="wordGuessWrap"></div>
@@ -1199,7 +1210,7 @@ async function createGame(){
     if(!snap.exists()) break;
   }while(++tries<10);
   const pid=newPid();
-  const settings={gameMode:'word', oddType:'both', guessOn:true, knowImps:false, loversOn:false,
+  const settings={gameMode:'word', oddType:'both', guessOn:true, knowImps:false, loversOdds:0,
     roleOdds:{detective:0,saboteur:0,jester:0,mayor:0,gambler:0,doubleagent:0},
     mafiaOdds:{medic:100,angel:0,detective:50,sheriff:50,hunter:0,jester:0,mayor:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
     clockTimes:{"10":true,"20":true,"30":true,"60":true}};
@@ -1310,7 +1321,7 @@ const SETTING_SEGS=[
   {id:'sHint', key:'hintOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sGuess', key:'guessOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sKnow', key:'knowImps', map:v=>v==='on', rev:v=>v?'on':'off'},
-  {id:'sLovers', key:'loversOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+
 
   {id:'sStyle', key:'playStyle'}
 ];
@@ -1327,6 +1338,7 @@ function buildSettingsUI(){
   });
   $('sImp').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/impCount').set(Math.max(1,parseInt($('sImp').value,10)||1)); });
   $('sQRounds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/qRounds').set(parseInt($('sQRounds').value,10)||2); });
+  $('sLoversOdds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/loversOdds').set(parseInt($('sLoversOdds').value,10)||0); });
   $('sCat').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/category').set($('sCat').value); });
   const rb=$('sRolesBody');
   ROLE_KEYS.forEach(k=>{
@@ -1387,6 +1399,7 @@ function syncSettingsUI(){
   $('sGuessField').style.display = (gm!=='odd') ? '' : 'none';
   $('sKnowField').style.display = (gm==='word' && st.impMode!=='undercover' && (st.impCount||1)>1) ? '' : 'none';
   $('sLoversField').style.display = ((gm==='word' && st.playStyle==='elimination') || gm==='mafia') ? '' : 'none';
+  if(document.activeElement!==$('sLoversOdds')) $('sLoversOdds').value=String(st.loversOdds||0);
   $('sMafiaField').style.display = gm==='mafia' ? '' : 'none';
   $('sRolesField').style.display = gm!=='mafia' ? '' : 'none';
   const mo=st.mafiaOdds||{};
@@ -1429,7 +1442,7 @@ async function hostStartRound(){
       if(pids.length<4) return toast('Mafia needs at least 4 players');
       round=dealMafiaRound(pids, st, num);
     }
-    secRunning=null;
+    secRunning=null; privOpenFor=null;
     await db.ref('games/'+CODE).update({status:'playing', round});
     haptic('medium');
     return;
@@ -1493,11 +1506,12 @@ async function hostStartRound(){
   if((st.playStyle||'party')==='elimination'){
     round.eliminated={};
     round.voteRound=1;
-    if(st.loversOn){
+    if((st.loversOdds||0)>0 && Math.random()*100<st.loversOdds){
       const lv=pickLovers(pids, impPids);
       if(lv) round.lovers=lv;
     }
   }
+  privOpenFor=null;
   await db.ref('games/'+CODE).update({status:'playing', round});
   haptic('medium');
 }
@@ -1703,30 +1717,50 @@ function dealSecondsRound(pids, st, num){
 }
 
 /* ═══════════════ Player actions ═══════════════ */
-let privOpenFor=null; // shared phones: whose private panel is on screen
-function privOpen(pid){ privOpenFor=pid; render(); haptic('light'); }
-function privHide(){ privOpenFor=null; render(); haptic('light'); }
-/* on a shared phone, only the player who tapped their own button sees anything */
+/* ── Shared-phone identity switcher ──
+   Big name boxes; tap yours to open everything private to you,
+   tap it again to hide it from whoever you pass the phone to. */
+let privOpenFor=null;
+function privToggle(pid){
+  privOpenFor = (privOpenFor===pid) ? null : pid;
+  hideAllSecretCards();
+  render();
+  haptic('light');
+}
 function privVisible(pid){
   return myPlayerIds().length<2 || privOpenFor===pid;
 }
-function privLockHTML(pid, label){
-  return '<button class="btn secondary big" style="margin-bottom:8px" onclick="privOpen(\''+pid+'\')">🔒 '+
-    esc(playerNameOf(pid))+' — tap for YOUR '+label+'</button>';
+function renderWhoBoxes(r, players){
+  const box=$('whoBoxes');
+  const myIds=myPlayerIds();
+  if(myIds.length<2){ box.style.display='none'; box.innerHTML=''; privOpenFor=null; return; }
+  if(privOpenFor && !myIds.includes(privOpenFor)) privOpenFor=null;
+  box.style.display='flex';
+  box.innerHTML=myIds.map((pid,i)=>{
+    const hue=CARD_HUES[i % CARD_HUES.length];
+    const open=privOpenFor===pid;
+    const dead=(r.eliminated||{})[pid];
+    return '<button class="whobox'+(open?' open':'')+'" onclick="privToggle(\''+pid+'\')" '+
+      'style="background:linear-gradient(135deg,hsl('+hue+',70%,45%),hsl('+((hue+40)%360)+',80%,55%))">'+
+      esc(players[pid]?.name||'?')+(dead?' 💀':'')+
+      '<span class="sm">'+(open?'tap again to hide':'tap to open your stuff')+'</span></button>';
+  }).join('');
 }
-function privDoneHTML(){
-  return '<button class="btn ghost" style="margin-top:6px" onclick="privHide()">Hide (pass the phone)</button>';
+/* Everything private renders only for the open player */
+function visibleIds(){
+  const myIds=myPlayerIds();
+  if(myIds.length<2) return myIds;
+  return privOpenFor?[privOpenFor]:[];
 }
+function privLockHTML(){ return ''; }
+function privDoneHTML(){ return ''; }
 
-let oddOpenFor=null; // shared phones: whose question is on screen right now
-function oddOpen(pid){ oddOpenFor=pid; render(); haptic('light'); }
-function oddHide(){ oddOpenFor=null; render(); haptic('light'); }
 async function submitOddAnswer(pid){
   const ta=document.getElementById('ans-'+pid);
   if(!ta) return;
   const txt=ta.value.trim();
   if(!txt) return toast('Type an answer first');
-  oddOpenFor=null;
+  privOpenFor=null;
   await db.ref('games/'+CODE+'/round/answers/'+pid).set(txt.slice(0,80));
   haptic('medium');
 }
@@ -1826,12 +1860,10 @@ function roleInfoFor(pid, r){
 function rolePanelHTML(r, pids){
   const alive=pids.filter(p=>!(r.eliminated||{})[p]);
   let html='';
-  const sharedRP=myPlayerIds().length>1;
-  myPlayerIds().forEach(pid=>{
+  visibleIds().forEach(pid=>{
     if((r.eliminated||{})[pid]) return;
     const roleKey=(r.roles||{})[pid];
     if(!roleKey) return;
-    if(sharedRP && !privVisible(pid)){ html+=privLockHTML(pid,'role actions'); return; }
     const targets=alive.filter(p=>p!==pid);
     const opts=targets.map(p=>'<option value="'+p+'">'+esc(playerNameOf(p))+'</option>').join('');
     if(roleKey==='detective'){
@@ -2162,6 +2194,7 @@ function renderResultPanel(r, pids, players){
 function renderOddPanel(r, pids, players){
   $('oddPanel').style.display='block';
   const myIds=myPlayerIds();
+  $('whoBoxes').style.display = myIds.length>1 ? 'flex' : 'none';
   let html='';
   if(r.phase==='answer'){
     myIds.forEach(pid=>{
@@ -2348,7 +2381,7 @@ function dealMafiaRound(pids, st, num){
     votes:{}, angelPid:null, sheriffUsed:false,
     medicOn:medicIn, angelOn:angelIn, guessOn:(st.guessOn!==false)};
   /* Lovers pair completely at random — mafia and civilian is fair game */
-  if(st.loversOn && pids.length>=4){
+  if((st.loversOdds||0)>0 && Math.random()*100<st.loversOdds && pids.length>=4){
     const sh=shuffle(pids.slice());
     round.lovers=[sh[0], sh[1]];
   }
@@ -2589,6 +2622,7 @@ function selOpts(list, exclude){
 
 function renderMafiaPanel(r, pids, players){
   $('mafiaPanel').style.display='block';
+  $('whoBoxes').style.display = myPlayerIds().length>1 ? 'flex' : 'none';
   const alive=aliveOf(r,pids);
   const myIds=myPlayerIds();
   const myAlive=myIds.filter(p=>alive.includes(p));
@@ -2621,11 +2655,9 @@ function renderMafiaPanel(r, pids, players){
     const shielder=activeShielder(r,pids);
     const shared=myIds.length>1;
     myAlive.concat(myIds.filter(p=>p===r.angelPid)).forEach(pid=>{
+      if(!privVisible(pid)) return;
       const isShielder=pid===shielder;
       const isMafia=pid===r.mafiaPid;
-      const isDetective=(r.roles||{})[pid]==='detective';
-      const needsPanel=(r.nightStep==='medic'&&isShielder)||(r.nightStep==='mafia'&&isMafia)||(r.nightStep!=='start'&&isDetective);
-      if(shared && needsPanel && !privVisible(pid)){ html+=privLockHTML(pid,'night action'); return; }
       if(r.nightStep==='medic' && isShielder){
         const label=(r.angelPid===pid)?'👼 Angel':'🩺 Medic';
         html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+label+' — '+esc(playerNameOf(pid))+', you\'re awake</div>'+
@@ -2656,16 +2688,17 @@ function renderMafiaPanel(r, pids, players){
       }
     });
     if(!html.includes('qcard')){
-      const waitTxt = r.nightStep==='start' ? 'Waiting for the host to start the night...' : 'Eyes closed. Wait for the narrator...';
+      const waitTxt = r.nightStep==='start' ? 'Waiting for the host to start the night...'
+        : (shared && !privOpenFor) ? 'Tap your name above to check your night action.'
+        : 'Eyes closed. Wait for the narrator...';
       html+='<p class="muted" style="text-align:center">'+waitTxt+'</p>';
     }
   }
 
   /* sheriff can shoot at any time while alive */
-  const sharedP=myIds.length>1;
   myAlive.forEach(pid=>{
+    if(!privVisible(pid)) return;
     if((r.roles||{})[pid]==='sheriff' && !r.sheriffUsed){
-      if(sharedP && !privVisible(pid)){ html+=privLockHTML(pid,'Sheriff options'); return; }
       html+='<div class="qcard"><div class="qname" style="color:#d0244b">🤠 Sheriff — '+esc(playerNameOf(pid))+'</div>'+
         '<div class="muted">One bullet, any time. Hit the mafia and they die. Miss and you die.</div>'+
         '<select class="odds-sel" id="shoot-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
@@ -2678,7 +2711,7 @@ function renderMafiaPanel(r, pids, players){
     }
   });
   /* dead hunter still gets their shot */
-  myIds.filter(p=>(r.eliminated||{})[p] && (r.roles||{})[p]==='hunter' && !r.hunterUsed).forEach(pid=>{
+  myIds.filter(p=>privVisible(p) && (r.eliminated||{})[p] && (r.roles||{})[p]==='hunter' && !r.hunterUsed).forEach(pid=>{
     if(html.includes('hunt-'+pid)) return;
     html+='<div class="qcard"><div class="qname" style="color:#d0244b">🏹 Hunter — take someone with you</div>'+
       '<select class="odds-sel" id="hunt-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
@@ -2764,14 +2797,17 @@ function renderPlay(){
 
   /* hide everything mode-specific, then show what this mode needs */
   ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel','mafiaPanel'].forEach(id=>$(id).style.display='none');
-  document.querySelector('#secretCards').parentElement.style.display = (mode!=='odd') ? 'block' : 'none';
+  /* panel visibility handled after we know what's open */
 
   const myIds=myPlayerIds();
-  if(mode!=='odd') buildSecretCards(myIds, r, players);
+  renderWhoBoxes(r, players);
+  const showIds=visibleIds();
+  const wrapPanel=document.querySelector('#secretCards').parentElement;
+  if(mode!=='odd') buildSecretCards(showIds, r, players);
   /* Word Imposter (classic): imposters can gamble a word guess for +3 */
   if(mode==='word' && r.impMode!=='undercover' && r.guessOn!==false){
     let gh='';
-    myIds.forEach(pid=>{
+    showIds.forEach(pid=>{
       const a=r.assignments?.[pid];
       if(!a || !a.imp) return;
       const done=(r.impGuesses||{})[pid];
@@ -2786,6 +2822,7 @@ function renderPlay(){
   }else{
     $('wordGuessWrap').innerHTML='';
   }
+  wrapPanel.style.display = (mode!=='odd' && (showIds.length || myIds.length<2)) ? 'block' : 'none';
   if(mode==='odd') renderOddPanel(r, pids, players);
   if(mode==='artist') renderArtistPanel(r, pids, players);
   if(mode==='seconds') renderSecondsPanel();
