@@ -226,13 +226,6 @@
       <div class="field" id="sKnowField" style="display:none"><label>Imposters know each other</label>
         <div class="seg" id="sKnow"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
       </div>
-      <div class="field" id="sLoversField" style="display:none"><label>💕 Lovers (chance per round)</label>
-        <select id="sLoversOdds">
-          <option value="0">0%</option><option value="25">25%</option><option value="50">50%</option>
-          <option value="75">75%</option><option value="100">100%</option>
-        </select>
-        <span class="muted">Two players are secretly paired at random — if either dies, they both die.</span>
-      </div>
       <div class="row" id="sImpRow">
         <div class="field" style="flex:1"><label>Imposters</label><input type="number" id="sImp" min="1" value="1"></div>
         <div class="field" id="sQRoundsField" style="flex:1;display:none"><label>Question rounds</label>
@@ -300,11 +293,16 @@
     </section>
 
     <section class="panel">
-      <div class="whoboxes" id="whoBoxes" style="display:none"></div>
       <div class="secretwrap" id="secretCards"></div>
       <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
       <div id="wordGuessWrap"></div>
       <div id="rolePanel"></div>
+    </section>
+
+    <section class="panel" id="whoPanel" style="display:none">
+      <h3 style="margin:0 0 8px 0">📱 Sharing this phone</h3>
+      <div class="whoboxes" id="whoBoxes"></div>
+      <p class="muted" style="margin:0">Tap your name to open your private stuff. Tap it again to hide it before passing the phone.</p>
     </section>
 
     <section class="panel" id="mafiaPanel" style="display:none">
@@ -1338,8 +1336,16 @@ function buildSettingsUI(){
   });
   $('sImp').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/impCount').set(Math.max(1,parseInt($('sImp').value,10)||1)); });
   $('sQRounds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/qRounds').set(parseInt($('sQRounds').value,10)||2); });
-  $('sLoversOdds').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/loversOdds').set(parseInt($('sLoversOdds').value,10)||0); });
   $('sCat').addEventListener('change', ()=>{ if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/category').set($('sCat').value); });
+  const loversRow=(tbody, id)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td><b>💕 Lovers</b><br><span class="muted">Two players secretly paired at random — if either dies, they both die.</span></td>'+
+      '<td style="width:80px"><select id="'+id+'">'+[0,25,50,75,100].map(v=>'<option value="'+v+'">'+v+'%</option>').join('')+'</select></td>';
+    tbody.appendChild(tr);
+    tr.querySelector('select').addEventListener('change', e=>{
+      if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/loversOdds').set(parseInt(e.target.value,10));
+    });
+  };
   const rb=$('sRolesBody');
   ROLE_KEYS.forEach(k=>{
     const rd=ROLE_DEFS[k];
@@ -1351,6 +1357,7 @@ function buildSettingsUI(){
       if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/roleOdds/'+k).set(parseInt(e.target.value,10));
     });
   });
+  loversRow($('sRolesBody'), 'odds-lovers');
   const mb=$('sMafiaBody');
   MAFIA_ODDS_KEYS.forEach(k=>{
     const rd=MAFIA_ROLES[k];
@@ -1362,6 +1369,7 @@ function buildSettingsUI(){
       if(IS_HOST&&game) db.ref('games/'+CODE+'/settings/mafiaOdds/'+k).set(parseInt(e.target.value,10));
     });
   });
+  loversRow($('sMafiaBody'), 'modds-lovers');
   document.querySelectorAll('#sClock button').forEach(b=>{
     b.addEventListener('click', ()=>{
       if(!IS_HOST || !game) return;
@@ -1398,8 +1406,13 @@ function syncSettingsUI(){
   $('sQRoundsField').style.display = (gm==='word' && st.playStyle==='questions') ? '' : 'none';
   $('sGuessField').style.display = (gm!=='odd') ? '' : 'none';
   $('sKnowField').style.display = (gm==='word' && st.impMode!=='undercover' && (st.impCount||1)>1) ? '' : 'none';
-  $('sLoversField').style.display = ((gm==='word' && st.playStyle==='elimination') || gm==='mafia') ? '' : 'none';
-  if(document.activeElement!==$('sLoversOdds')) $('sLoversOdds').value=String(st.loversOdds||0);
+  /* Lovers sits in the roles tables; only meaningful where players get eliminated */
+  const loversOK=((gm==='word' && st.playStyle==='elimination') || gm==='mafia');
+  [$('odds-lovers'), $('modds-lovers')].forEach(sel=>{
+    if(!sel) return;
+    sel.closest('tr').style.display = loversOK ? '' : 'none';
+    if(document.activeElement!==sel) sel.value=String(st.loversOdds||0);
+  });
   $('sMafiaField').style.display = gm==='mafia' ? '' : 'none';
   $('sRolesField').style.display = gm!=='mafia' ? '' : 'none';
   const mo=st.mafiaOdds||{};
@@ -1733,9 +1746,9 @@ function privVisible(pid){
 function renderWhoBoxes(r, players){
   const box=$('whoBoxes');
   const myIds=myPlayerIds();
-  if(myIds.length<2){ box.style.display='none'; box.innerHTML=''; privOpenFor=null; return; }
+  if(myIds.length<2){ $('whoPanel').style.display='none'; box.innerHTML=''; privOpenFor=null; return; }
   if(privOpenFor && !myIds.includes(privOpenFor)) privOpenFor=null;
-  box.style.display='flex';
+  $('whoPanel').style.display='block';
   box.innerHTML=myIds.map((pid,i)=>{
     const hue=CARD_HUES[i % CARD_HUES.length];
     const open=privOpenFor===pid;
@@ -2120,8 +2133,12 @@ function renderVotePanel(r, pids, players){
   $('votePanel').style.display='block';
   const alive=pids.filter(p=>!(r.eliminated||{})[p]);
   pids=alive;
-  const myIds=myPlayerIds().filter(p=>!(r.eliminated||{})[p]);
+  const myIds=visibleIds().filter(p=>!(r.eliminated||{})[p]);
+  const sharedV=myPlayerIds().length>1;
   $('voteRows').innerHTML='';
+  if(sharedV && !privOpenFor){
+    $('voteRows').innerHTML='<p class="muted" style="text-align:center">Tap your name above to cast your vote.</p>';
+  }
   myIds.forEach(me=>{
     const row=document.createElement('div'); row.className='voterow';
     const done=(r.votes||{})[me];
@@ -2194,7 +2211,6 @@ function renderResultPanel(r, pids, players){
 function renderOddPanel(r, pids, players){
   $('oddPanel').style.display='block';
   const myIds=myPlayerIds();
-  $('whoBoxes').style.display = myIds.length>1 ? 'flex' : 'none';
   let html='';
   if(r.phase==='answer'){
     myIds.forEach(pid=>{
@@ -2622,7 +2638,6 @@ function selOpts(list, exclude){
 
 function renderMafiaPanel(r, pids, players){
   $('mafiaPanel').style.display='block';
-  $('whoBoxes').style.display = myPlayerIds().length>1 ? 'flex' : 'none';
   const alive=aliveOf(r,pids);
   const myIds=myPlayerIds();
   const myAlive=myIds.filter(p=>alive.includes(p));
@@ -2797,6 +2812,7 @@ function renderPlay(){
 
   /* hide everything mode-specific, then show what this mode needs */
   ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel','mafiaPanel'].forEach(id=>$(id).style.display='none');
+  $('whoPanel').style.display='none';
   /* panel visibility handled after we know what's open */
 
   const myIds=myPlayerIds();
