@@ -237,11 +237,7 @@
         <button class="btn secondary" onclick="hostAddShared()" style="margin-top:6px">Add shared player</button>
       </div>
       <div class="field" id="sMafiaField" style="display:none">
-        <label>🩺 Medic</label>
-        <div class="seg" id="sMedic"><button data-v="on" class="on">On</button><button data-v="off">Off</button></div>
-        <label style="margin-top:8px">👼 Angel (first dead civilian shields from the grave)</label>
-        <div class="seg" id="sAngel"><button data-v="on">On</button><button data-v="off" class="on">Off</button></div>
-        <label style="margin-top:8px">Mafia roles (chance per game)</label>
+        <label>Mafia roles (chance per game)</label>
         <table class="roles-tbl"><tbody id="sMafiaBody"></tbody></table>
         <span class="muted">Medic and Angel switch off automatically at 3 players left.</span>
       </div>
@@ -1205,7 +1201,7 @@ async function createGame(){
   const pid=newPid();
   const settings={gameMode:'word', oddType:'both', guessOn:true, knowImps:false, loversOn:false,
     roleOdds:{detective:0,saboteur:0,jester:0,mayor:0,gambler:0,doubleagent:0},
-    medicOn:true, angelOn:false, mafiaOdds:{detective:50,sheriff:50,hunter:0,jester:0,mayor:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
+    mafiaOdds:{medic:100,angel:0,detective:50,sheriff:50,hunter:0,jester:0,mayor:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
     clockTimes:{"10":true,"20":true,"30":true,"60":true}};
   await db.ref('games/'+code).set({
     createdAt:Date.now(), status:'lobby', host:pid, settings,
@@ -1315,8 +1311,7 @@ const SETTING_SEGS=[
   {id:'sGuess', key:'guessOn', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sKnow', key:'knowImps', map:v=>v==='on', rev:v=>v?'on':'off'},
   {id:'sLovers', key:'loversOn', map:v=>v==='on', rev:v=>v?'on':'off'},
-  {id:'sMedic', key:'medicOn', map:v=>v==='on', rev:v=>v?'on':'off'},
-  {id:'sAngel', key:'angelOn', map:v=>v==='on', rev:v=>v?'on':'off'},
+
   {id:'sStyle', key:'playStyle'}
 ];
 function buildSettingsUI(){
@@ -1345,7 +1340,7 @@ function buildSettingsUI(){
     });
   });
   const mb=$('sMafiaBody');
-  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+  MAFIA_ODDS_KEYS.forEach(k=>{
     const rd=MAFIA_ROLES[k];
     const tr=document.createElement('tr');
     tr.innerHTML='<td><b>'+rd.emoji+' '+rd.name+'</b><br><span class="muted">'+rd.desc+'</span></td>'+
@@ -1395,7 +1390,7 @@ function syncSettingsUI(){
   $('sMafiaField').style.display = gm==='mafia' ? '' : 'none';
   $('sRolesField').style.display = gm!=='mafia' ? '' : 'none';
   const mo=st.mafiaOdds||{};
-  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+  MAFIA_ODDS_KEYS.forEach(k=>{
     const sel=$('modds-'+k); if(sel && document.activeElement!==sel) sel.value=String(mo[k]??0);
   });
   $('styleNote').textContent = st.playStyle==='elimination'
@@ -1708,6 +1703,21 @@ function dealSecondsRound(pids, st, num){
 }
 
 /* ═══════════════ Player actions ═══════════════ */
+let privOpenFor=null; // shared phones: whose private panel is on screen
+function privOpen(pid){ privOpenFor=pid; render(); haptic('light'); }
+function privHide(){ privOpenFor=null; render(); haptic('light'); }
+/* on a shared phone, only the player who tapped their own button sees anything */
+function privVisible(pid){
+  return myPlayerIds().length<2 || privOpenFor===pid;
+}
+function privLockHTML(pid, label){
+  return '<button class="btn secondary big" style="margin-bottom:8px" onclick="privOpen(\''+pid+'\')">🔒 '+
+    esc(playerNameOf(pid))+' — tap for YOUR '+label+'</button>';
+}
+function privDoneHTML(){
+  return '<button class="btn ghost" style="margin-top:6px" onclick="privHide()">Hide (pass the phone)</button>';
+}
+
 let oddOpenFor=null; // shared phones: whose question is on screen right now
 function oddOpen(pid){ oddOpenFor=pid; render(); haptic('light'); }
 function oddHide(){ oddOpenFor=null; render(); haptic('light'); }
@@ -1816,10 +1826,12 @@ function roleInfoFor(pid, r){
 function rolePanelHTML(r, pids){
   const alive=pids.filter(p=>!(r.eliminated||{})[p]);
   let html='';
+  const sharedRP=myPlayerIds().length>1;
   myPlayerIds().forEach(pid=>{
     if((r.eliminated||{})[pid]) return;
     const roleKey=(r.roles||{})[pid];
     if(!roleKey) return;
+    if(sharedRP && !privVisible(pid)){ html+=privLockHTML(pid,'role actions'); return; }
     const targets=alive.filter(p=>p!==pid);
     const opts=targets.map(p=>'<option value="'+p+'">'+esc(playerNameOf(p))+'</option>').join('');
     if(roleKey==='detective'){
@@ -2304,6 +2316,7 @@ function renderArtistPanel(r, pids, players){
 /* ═══════════════ MAFIA MODE ═══════════════ */
 const MAFIA_ROLES={
   medic:{emoji:'🩺', name:'Medic', desc:'Each night, shield one player from the kill. You may shield yourself.'},
+  angel:{emoji:'👼', name:'Angel', desc:'The first civilian to die returns as a guardian, shielding one player each night.'},
   detective:{emoji:'🔍', name:'Detective', desc:'Each night, investigate one player: mafia or not.'},
   sheriff:{emoji:'🤠', name:'Sheriff', desc:'One bullet, any time. Shoot the mafia and they die. Shoot a civilian and YOU die.'},
   hunter:{emoji:'🏹', name:'Hunter', desc:'When you die, you take one player down with you.'},
@@ -2311,6 +2324,9 @@ const MAFIA_ROLES={
   mayor:{emoji:'👑', name:'Mayor', desc:'Your vote secretly counts twice.'}
 };
 const MAFIA_ROLE_KEYS=Object.keys(MAFIA_ROLES);
+const MAFIA_ODDS_KEYS=['medic','angel','detective','sheriff','hunter','jester','mayor'];
+/* roles the mafia can try to guess (angel isn't dealt at the start) */
+const MAFIA_GUESSABLE=['medic','detective','sheriff','hunter','jester','mayor'];
 
 /* Medic and Angel switch off at 3 players or fewer — too strong late */
 function shieldsAllowed(aliveCount){ return aliveCount>3; }
@@ -2319,8 +2335,10 @@ function dealMafiaRound(pids, st, num){
   const mafiaPid=pick(pids);
   const civs=shuffle(pids.filter(p=>p!==mafiaPid));
   const roles={};
-  if(st.medicOn && civs.length) roles[civs.pop()]='medic';
   const odds=st.mafiaOdds||{};
+  const medicIn=(odds.medic||0)>0 && Math.random()*100<odds.medic;
+  const angelIn=(odds.angel||0)>0 && Math.random()*100<odds.angel;
+  if(medicIn && civs.length) roles[civs.pop()]='medic';
   ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
     if((odds[k]||0)>0 && Math.random()*100<odds[k] && civs.length) roles[civs.pop()]=k;
   });
@@ -2328,7 +2346,7 @@ function dealMafiaRound(pids, st, num){
     mafiaPid, roles, eliminated:{}, dayNum:1,
     shield:null, investigations:{}, log:[],
     votes:{}, angelPid:null, sheriffUsed:false,
-    medicOn:!!st.medicOn, angelOn:!!st.angelOn, guessOn:(st.guessOn!==false)};
+    medicOn:medicIn, angelOn:angelIn, guessOn:(st.guessOn!==false)};
   /* Lovers pair completely at random — mafia and civilian is fair game */
   if(st.loversOn && pids.length>=4){
     const sh=shuffle(pids.slice());
@@ -2354,12 +2372,14 @@ function activeShielder(r, pids){
 async function mafiaShield(pid){
   const sel=document.getElementById('shield-'+pid); if(!sel||!sel.value) return;
   const base='games/'+CODE+'/round/';
+  privOpenFor=null;
   await db.ref(base+'shield').set({by:pid, target:sel.value});
-  await db.ref(base+'nightStep').set('mafia');
+  await db.ref(base+'nightStep').set('shielded');
   haptic('medium');
 }
 async function mafiaKill(pid){
   const sel=document.getElementById('kill-'+pid); if(!sel||!sel.value) return;
+  privOpenFor=null;
   await db.ref('games/'+CODE+'/round/pendingKill').set(sel.value);
   await db.ref('games/'+CODE+'/round/nightStep').set('resolve');
   haptic('heavy');
@@ -2440,20 +2460,42 @@ async function checkMafiaWin(r, pids, justDead){
 }
 
 /* ── Host night/day driver ── */
+const NIGHT_GAP=4000;   // pause between narration steps
+/* Host presses this to begin the night — nothing is spoken until they do */
+async function hostSleepNow(){
+  if(!IS_HOST || !game?.round) return;
+  const base='games/'+CODE+'/round/';
+  narrate('Everyone, go to sleep.');
+  await db.ref(base+'nightStep').set('sleeping');
+  const pids=Object.keys(game.players||{});
+  setTimeout(async ()=>{
+    const r=game.round; if(!r || r.phase!=='night') return;
+    const shielder=activeShielder(r,pids);
+    if(shielder){
+      narrate(r.angelPid===shielder?'Angel, wake up.':'Medic, wake up.');
+      await db.ref(base+'nightStep').set('medic');
+    }else{
+      narrate('Mafia, wake up.');
+      await db.ref(base+'nightStep').set('mafia');
+    }
+  }, NIGHT_GAP);
+}
 async function mafiaHostTick(){
   if(!IS_HOST || !game?.round || game.round.mode!=='mafia') return;
   const r=game.round, pids=Object.keys(game.players||{});
   const base='games/'+CODE+'/round/';
   if(r.phase!=='night') return;
-  if(r.nightStep==='start'){
-    narrate('Everyone, go to sleep.');
-    const shielder=activeShielder(r,pids);
+  /* medic has shielded — wait, then wake the mafia */
+  if(r.nightStep==='shielded' && !r._t1){
+    r._t1=true;
+    narrate('Medic, go back to sleep.');
     setTimeout(async ()=>{
-      if(shielder){ narrate(r.angelPid===shielder?'Angel, wake up.':'Medic, wake up.'); await db.ref(base+'nightStep').set('medic'); }
-      else { narrate('Mafia, wake up.'); await db.ref(base+'nightStep').set('mafia'); }
-    }, 3000);
-    await db.ref(base+'nightStep').set('sleeping');
+      const fresh=game.round; if(!fresh || fresh.phase!=='night') return;
+      narrate('Mafia, wake up.');
+      await db.ref(base+'nightStep').set('mafia');
+    }, NIGHT_GAP);
   }
+  /* mafia has killed — resolve, wait, then wake the town */
   if(r.nightStep==='resolve'){
     await db.ref(base+'nightStep').set('resolving');
     const target=r.pendingKill;
@@ -2467,13 +2509,13 @@ async function mafiaHostTick(){
     }
     await db.ref(base+'pendingKill').remove();
     setTimeout(async ()=>{
-      narrate('Everyone, wake up.');
       const fresh=game.round;
       if(fresh && fresh.phase==='night'){
+        narrate('Everyone, wake up.');
         await db.ref(base+'nightStep').set('done');
         await db.ref(base+'phase').set('day');
       }
-    }, 2500);
+    }, NIGHT_GAP);
   }
 }
 async function hostMafiaVote(){
@@ -2577,15 +2619,19 @@ function renderMafiaPanel(r, pids, players){
   /* night: private action cards for whoever is awake */
   if(r.phase==='night'){
     const shielder=activeShielder(r,pids);
+    const shared=myIds.length>1;
     myAlive.concat(myIds.filter(p=>p===r.angelPid)).forEach(pid=>{
       const isShielder=pid===shielder;
       const isMafia=pid===r.mafiaPid;
+      const isDetective=(r.roles||{})[pid]==='detective';
+      const needsPanel=(r.nightStep==='medic'&&isShielder)||(r.nightStep==='mafia'&&isMafia)||(r.nightStep!=='start'&&isDetective);
+      if(shared && needsPanel && !privVisible(pid)){ html+=privLockHTML(pid,'night action'); return; }
       if(r.nightStep==='medic' && isShielder){
         const label=(r.angelPid===pid)?'👼 Angel':'🩺 Medic';
         html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+label+' — '+esc(playerNameOf(pid))+', you\'re awake</div>'+
           '<div class="muted">Choose who to shield tonight'+(r.angelPid===pid?'':' (you can shield yourself)')+'.</div>'+
           '<select class="odds-sel" id="shield-'+pid+'">'+selOpts(alive, r.angelPid===pid?[pid]:[])+'</select> '+
-          '<button class="btn primary" onclick="mafiaShield(\''+pid+'\')">Shield</button></div>';
+          '<button class="btn primary" onclick="mafiaShield(\''+pid+'\')">Shield</button>'+(shared?privDoneHTML():'')+'</div>';
       }
       if(r.nightStep==='mafia' && isMafia){
         html+='<div class="qcard"><div class="qname" style="color:#d0244b">🔪 Mafia — '+esc(playerNameOf(pid))+', you\'re awake</div>'+
@@ -2595,10 +2641,10 @@ function renderMafiaPanel(r, pids, players){
         if(r.guessOn!==false && !r.roleGuess){
           html+='<div class="muted" style="margin-top:8px">Or gamble: guess someone\'s role. Right, they die. Wrong, YOU die.</div>'+
             '<select class="odds-sel" id="mtgt-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
-            '<select class="odds-sel" id="mrole-'+pid+'">'+MAFIA_ROLE_KEYS.map(k=>'<option value="'+k+'">'+MAFIA_ROLES[k].name+'</option>').join('')+'</select> '+
+            '<select class="odds-sel" id="mrole-'+pid+'">'+MAFIA_GUESSABLE.map(k=>'<option value="'+k+'">'+MAFIA_ROLES[k].name+'</option>').join('')+'</select> '+
             '<button class="btn secondary" onclick="mafiaRoleGuess(\''+pid+'\')">Guess Role</button>';
         }
-        html+='</div>';
+        html+=(shared?privDoneHTML():'')+'</div>';
       }
       if(r.nightStep!=='start' && (r.roles||{})[pid]==='detective'){
         const done=(r.investigations||{})[r.dayNum||1]?.[pid];
@@ -2606,15 +2652,20 @@ function renderMafiaPanel(r, pids, players){
         if(done){ html+='<div class="muted">'+esc(playerNameOf(done))+' is '+(done===r.mafiaPid?'🚨 THE MAFIA':'✅ not the mafia')+'.</div>'; }
         else{ html+='<select class="odds-sel" id="inv-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
           '<button class="btn secondary" onclick="mafiaInvestigate(\''+pid+'\')">Investigate</button>'; }
-        html+='</div>';
+        html+=(shared?privDoneHTML():'')+'</div>';
       }
     });
-    if(!html.includes('qcard')) html+='<p class="muted" style="text-align:center">Eyes closed. Wait for the narrator...</p>';
+    if(!html.includes('qcard')){
+      const waitTxt = r.nightStep==='start' ? 'Waiting for the host to start the night...' : 'Eyes closed. Wait for the narrator...';
+      html+='<p class="muted" style="text-align:center">'+waitTxt+'</p>';
+    }
   }
 
   /* sheriff can shoot at any time while alive */
+  const sharedP=myIds.length>1;
   myAlive.forEach(pid=>{
     if((r.roles||{})[pid]==='sheriff' && !r.sheriffUsed){
+      if(sharedP && !privVisible(pid)){ html+=privLockHTML(pid,'Sheriff options'); return; }
       html+='<div class="qcard"><div class="qname" style="color:#d0244b">🤠 Sheriff — '+esc(playerNameOf(pid))+'</div>'+
         '<div class="muted">One bullet, any time. Hit the mafia and they die. Miss and you die.</div>'+
         '<select class="odds-sel" id="shoot-'+pid+'">'+selOpts(alive,[pid])+'</select> '+
@@ -2642,6 +2693,9 @@ function renderMafiaPanel(r, pids, players){
     if(r.lovers) html+='<div class="muted">💕 Lovers: '+r.lovers.map(playerNameOf).map(esc).join(' & ')+'</div>';
   }
 
+  if(IS_HOST && r.phase==='night' && r.nightStep==='start'){
+    html+='<button class="btn primary big" style="margin-top:8px" onclick="hostSleepNow()">🌙 Everyone Go To Sleep</button>';
+  }
   if(IS_HOST && r.phase==='day'){
     html+='<button class="btn primary big" style="margin-top:8px" onclick="hostMafiaVote()">🗳 Start the Vote</button>';
   }
