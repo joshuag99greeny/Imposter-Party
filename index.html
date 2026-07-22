@@ -143,7 +143,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online</div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v13</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -1210,7 +1210,7 @@ async function createGame(){
   const pid=newPid();
   const settings={gameMode:'word', oddType:'both', guessOn:true, knowImps:false, loversOdds:0,
     roleOdds:{detective:0,saboteur:0,jester:0,mayor:0,gambler:0,doubleagent:0},
-    mafiaOdds:{medic:100,angel:0,detective:50,sheriff:50,hunter:0,jester:0,mayor:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
+    mafiaOdds:{medic:100,angel:0,detective:50,sheriff:50,hunter:0,jester:0,mayor:0,undertaker:0}, diff:'easy', impMode:'classic', hintOn:true, playStyle:'party', qRounds:2, impCount:1, category:'__random__',
     clockTimes:{"10":true,"20":true,"30":true,"60":true}};
   await db.ref('games/'+code).set({
     createdAt:Date.now(), status:'lobby', host:pid, settings,
@@ -2362,6 +2362,96 @@ function renderArtistPanel(r, pids, players){
 }
 
 
+
+/* ═══════════════ MAFIA FLAVOUR TEXT ═══════════════
+   {N} = victim, {K} = other name where needed. Narrated aloud AND shown. */
+const FLAV_KILL=[
+ "{N} was smothered with a pillow in their sleep. Sweet dreams.",
+ "{N} was found face down in a bowl of cereal. Tragic. Soggy.",
+ "{N} took a bite of a suspicious sausage roll. It was their last.",
+ "{N} was pushed down the stairs. The stairs deny everything.",
+ "{N} answered the door at 3am. Rookie mistake.",
+ "{N} was last seen going to check on a strange noise. Never do that.",
+ "{N} choked on a Yorkshire pudding. The gravy was innocent.",
+ "{N} was found in the wheelie bin. Bin day was yesterday.",
+ "{N} was electrocuted by a phone charger. A cheap one, obviously.",
+ "{N} was flattened by a falling wardrobe. Flat-pack revenge.",
+ "{N} went for a midnight swim. The pool was empty.",
+ "{N} was poisoned by a dodgy kebab. Two in the morning, of course.",
+ "{N} slipped on a banana skin. It was placed there deliberately.",
+ "{N} was suffocated with a beanbag. Undignified but effective.",
+ "{N} was taken out by a rogue shopping trolley. It gathered speed.",
+ "{N} was found frozen in the chest freezer, clutching a Magnum.",
+ "{N} was crushed by a vending machine. It didn't even drop the crisps.",
+ "{N} was last seen arguing with the mafia about the bill. They lost.",
+ "{N} was buried under a pile of laundry. It had been building for weeks.",
+ "{N} drank the milk. Nobody had checked the date.",
+ "{N} was strangled with a phone charger cable. Ironic, given the battery anxiety.",
+ "{N} sat on a whoopee cushion. It was not a whoopee cushion.",
+ "{N} was pecked to death by seagulls. Someone left chips on their chest.",
+ "{N} tripped over the cat. The cat was working for the mafia.",
+ "{N} was found under the trampoline. Nobody's asking questions."
+];
+const FLAV_SAVE=[
+ "The mafia crept up on {N} with a pillow — but smothered their feet by mistake. {N} lives, mildly annoyed.",
+ "The killer swung at {N} and hit a cushion. {N} slept through the whole thing.",
+ "{N} was poisoned — but they'd already eaten a kebab, so nothing could touch them. {N} survives.",
+ "The mafia pushed {N} down the stairs. {N} bounced. {N} is fine.",
+ "The killer struck at {N}, but the Medic had already tucked them in. Not a scratch.",
+ "{N} was targeted tonight — but got up for a wee at exactly the right moment. Saved.",
+ "The mafia went for {N} and got a mouthful of duvet. {N} lives to argue another day.",
+ "{N} was attacked — but the Medic had swapped them with a mannequin. Nobody's asking why they had one.",
+ "The killer reached for {N} and set off a motion light. They panicked and left. {N} survives.",
+ "{N} would have died tonight — but a guardian was watching. The mafia went home fuming.",
+ "The mafia tried to poison {N}'s tea. {N} takes it with six sugars. They noticed nothing and survived.",
+ "The killer crept in — and stood on a piece of Lego. {N} slept right through the screaming."
+];
+const FLAV_LYNCH=[
+ "The town has spoken. {N} is out.",
+ "{N} was voted out. They protest. Nobody listens.",
+ "The mob has decided: {N} is finished.",
+ "{N} has been thrown out of the village. Loudly.",
+ "By a show of hands, {N} is gone. Democracy is brutal.",
+ "{N} argued their case beautifully. The town voted them out anyway."
+];
+const FLAV_SHERIFF_HIT=[
+ "The Sheriff drew fast and clean — and dropped the mafia where they stood.",
+ "One bullet. One perfect shot. The Sheriff got their target.",
+ "The Sheriff was right all along. The mafia never saw it coming."
+];
+const FLAV_SHERIFF_MISS=[
+ "The Sheriff fired at an innocent — and the recoil took them clean out. Should have aimed better.",
+ "The Sheriff shot the wrong person and immediately keeled over from the guilt. And the recoil.",
+ "The Sheriff missed. Spectacularly. The Sheriff is now the deceased."
+];
+const FLAV_GUESS_HIT=[
+ "The mafia guessed exactly right — {N} has been eliminated for knowing too much.",
+ "The mafia sniffed out {N}'s secret. {N} is no longer with us."
+];
+const FLAV_GUESS_BACK=[
+ "The mafia guessed wrong — and in the confusion, took themselves out entirely.",
+ "The mafia made a bold accusation. It was wrong. It was also fatal — to them."
+];
+const FLAV_HUNTER=[
+ "With their last breath, the Hunter took {N} down with them.",
+ "The Hunter refused to go alone. {N} is coming too."
+];
+const FLAV_REVIVE=[
+ "A candle was lit in the dark, and {N} sat bolt upright. {N} is back among the living.",
+ "{N} has been dragged back from the other side. They look terrible, but they're alive.",
+ "Against all odds, {N} coughs, blinks, and rejoins the town. Death was temporary.",
+ "The Undertaker worked through the night. {N} lives again."
+];
+const FLAV_TIE=[
+ "The vote was tied. Nobody dies today. Everyone is suspicious of everyone.",
+ "A tie. The town can't agree, so the town does nothing. Classic.",
+ "Deadlock. No one is thrown out. The mafia is quietly delighted."
+];
+function flav(list, name, other){
+  let t=pick(list);
+  return t.replace(/\{N\}/g, name||'someone').replace(/\{K\}/g, other||'someone');
+}
+
 /* ═══════════════ MAFIA MODE ═══════════════ */
 const MAFIA_ROLES={
   medic:{emoji:'🩺', name:'Medic', desc:'Each night, shield one player from the kill. You may shield yourself.'},
@@ -2370,12 +2460,13 @@ const MAFIA_ROLES={
   sheriff:{emoji:'🤠', name:'Sheriff', desc:'One bullet, any time. Shoot the mafia and they die. Shoot a civilian and YOU die.'},
   hunter:{emoji:'🏹', name:'Hunter', desc:'When you die, you take one player down with you.'},
   jester:{emoji:'🤡', name:'Jester', desc:'You WANT to be voted out. +4 if the town lynches you.'},
-  mayor:{emoji:'👑', name:'Mayor', desc:'Your vote secretly counts twice.'}
+  mayor:{emoji:'👑', name:'Mayor', desc:'Your vote secretly counts twice.'},
+  undertaker:{emoji:'🕯️', name:'Undertaker', desc:'Once per game, bring a dead player back to life.'}
 };
 const MAFIA_ROLE_KEYS=Object.keys(MAFIA_ROLES);
-const MAFIA_ODDS_KEYS=['medic','angel','detective','sheriff','hunter','jester','mayor'];
+const MAFIA_ODDS_KEYS=['medic','angel','detective','sheriff','hunter','jester','mayor','undertaker'];
 /* roles the mafia can try to guess (angel isn't dealt at the start) */
-const MAFIA_GUESSABLE=['medic','detective','sheriff','hunter','jester','mayor'];
+const MAFIA_GUESSABLE=['medic','detective','sheriff','hunter','jester','mayor','undertaker'];
 
 /* Medic and Angel switch off at 3 players or fewer — too strong late */
 function shieldsAllowed(aliveCount){ return aliveCount>3; }
@@ -2388,7 +2479,7 @@ function dealMafiaRound(pids, st, num){
   const medicIn=(odds.medic||0)>0 && Math.random()*100<odds.medic;
   const angelIn=(odds.angel||0)>0 && Math.random()*100<odds.angel;
   if(medicIn && civs.length) roles[civs.pop()]='medic';
-  ['detective','sheriff','hunter','jester','mayor'].forEach(k=>{
+  ['detective','sheriff','hunter','jester','mayor','undertaker'].forEach(k=>{
     if((odds[k]||0)>0 && Math.random()*100<odds[k] && civs.length) roles[civs.pop()]=k;
   });
   const round={mode:'mafia', num, phase:'night', nightStep:'start',
@@ -2447,6 +2538,19 @@ async function mafiaRoleGuess(pid){
   const dead = correct ? tgt.value : pid;   // wrong guess backfires fatally
   await db.ref('games/'+CODE+'/round/roleGuess').set({by:pid, target:tgt.value, role:sel.value, correct});
   await applyDeaths(r, [dead], correct ? 'guess-hit' : 'guess-backfire');
+  haptic('heavy');
+}
+async function undertakerRevive(pid){
+  const sel=document.getElementById('rev-'+pid); if(!sel||!sel.value) return;
+  const r=game.round;
+  if(r.reviveUsed) return;
+  privOpenFor=null;
+  await db.ref('games/'+CODE+'/round/reviveUsed').set(true);
+  await db.ref('games/'+CODE+'/round/eliminated/'+sel.value).remove();
+  if(r.angelPid===sel.value) await db.ref('games/'+CODE+'/round/angelPid').remove();
+  const log=(r.log||[]).slice();
+  log.push({reason:'revive', dead:[sel.value], day:r.dayNum||1});
+  await db.ref('games/'+CODE+'/round/log').set(log);
   haptic('heavy');
 }
 async function sheriffShoot(pid){
@@ -2509,11 +2613,13 @@ async function checkMafiaWin(r, pids, justDead){
 }
 
 /* ── Host night/day driver ── */
-const NIGHT_GAP=4000;   // pause between narration steps
+const NIGHT_GAP=4000;    // pause before the first role wakes
+const NIGHT_PAUSE=6000;  // longer pause after someone acts, so eyes can close
 /* Host presses this to begin the night — nothing is spoken until they do */
 async function hostSleepNow(){
   if(!IS_HOST || !game?.round) return;
   const base='games/'+CODE+'/round/';
+  await db.ref(base+'shield').remove();   /* fresh shield choice every single night */
   narrate('Everyone, go to sleep.');
   await db.ref(base+'nightStep').set('sleeping');
   const pids=Object.keys(game.players||{});
@@ -2534,15 +2640,18 @@ async function mafiaHostTick(){
   const r=game.round, pids=Object.keys(game.players||{});
   const base='games/'+CODE+'/round/';
   if(r.phase!=='night') return;
-  /* medic has shielded — wait, then wake the mafia */
-  if(r.nightStep==='shielded' && !r._t1){
-    r._t1=true;
-    narrate('Medic, go back to sleep.');
+  /* medic has shielded — long pause, send them back to sleep, then wake the mafia */
+  if(r.nightStep==='shielded'){
+    await db.ref(base+'nightStep').set('shieldwait');
     setTimeout(async ()=>{
       const fresh=game.round; if(!fresh || fresh.phase!=='night') return;
-      narrate('Mafia, wake up.');
-      await db.ref(base+'nightStep').set('mafia');
-    }, NIGHT_GAP);
+      narrate((fresh.angelPid&&fresh.shield&&fresh.shield.by===fresh.angelPid?'Angel':'Medic')+', go back to sleep.');
+      setTimeout(async ()=>{
+        const f2=game.round; if(!f2 || f2.phase!=='night') return;
+        narrate('Mafia, wake up.');
+        await db.ref(base+'nightStep').set('mafia');
+      }, NIGHT_GAP);
+    }, NIGHT_PAUSE);
   }
   /* mafia has killed — resolve, wait, then wake the town */
   if(r.nightStep==='resolve'){
@@ -2560,11 +2669,17 @@ async function mafiaHostTick(){
     setTimeout(async ()=>{
       const fresh=game.round;
       if(fresh && fresh.phase==='night'){
-        narrate('Everyone, wake up.');
-        await db.ref(base+'nightStep').set('done');
-        await db.ref(base+'phase').set('day');
+        narrate('Mafia, go back to sleep.');
+        setTimeout(async ()=>{
+          const f2=game.round;
+          if(f2 && f2.phase==='night'){
+            narrate('Everyone, wake up.');
+            await db.ref(base+'nightStep').set('done');
+            await db.ref(base+'phase').set('day');
+          }
+        }, NIGHT_GAP);
       }
-    }, NIGHT_GAP);
+    }, NIGHT_PAUSE);
   }
 }
 async function hostMafiaVote(){
@@ -2609,6 +2724,15 @@ async function hunterTake(pid){
   haptic('heavy');
 }
 
+const flavCache={};
+const narratedKeys=new Set();
+/* say a line exactly once per event, on the host phone only */
+function narrateOnce(key, text){
+  if(!IS_HOST || narratedKeys.has(key)) return;
+  narratedKeys.add(key);
+  setTimeout(()=>narrate(text), 400);
+}
+
 /* ── Spoken narration (host phone = the narrator) ── */
 let lastNarration='';
 function narrate(text){
@@ -2649,20 +2773,38 @@ function renderMafiaPanel(r, pids, players){
     : r.phase==='vote' ? '🗳 Voting' : '📜 Game over';
   html+='<div class="turnbanner">'+phaseTxt+' — '+alive.length+' alive</div>';
 
-  /* morning report */
+  /* morning report — flavour text, written once per event and narrated aloud */
   if(r.phase!=='night'){
     const today=(r.log||[]).filter(l=>l.day===(r.dayNum||1));
-    today.forEach(l=>{
-      if(l.reason==='shielded') html+='<div class="elim-banner">🩺 The mafia struck — but their target was shielded! Nobody died.</div>';
-      if(l.reason==='mafia-kill') html+='<div class="elim-banner">💀 '+l.dead.map(playerNameOf).map(esc).join(' & ')+' was killed in the night.</div>';
-      if(l.reason==='lynch') html+='<div class="elim-banner">⚖️ The town voted out '+l.dead.map(playerNameOf).map(esc).join(' & ')+'.</div>';
-      if(l.reason==='sheriff-hit') html+='<div class="elim-banner">🤠 The Sheriff fired — and hit the mafia!</div>';
-      if(l.reason==='sheriff-miss') html+='<div class="elim-banner">🤠 The Sheriff fired at an innocent — and died for it.</div>';
-      if(l.reason==='guess-hit') html+='<div class="elim-banner">🎯 The mafia guessed a role correctly and killed '+l.dead.map(playerNameOf).map(esc).join(' & ')+'.</div>';
-      if(l.reason==='guess-backfire') html+='<div class="elim-banner">💥 The mafia guessed wrong — and it cost them their life.</div>';
-      if(l.reason==='hunter') html+='<div class="elim-banner">🏹 The Hunter took '+l.dead.map(playerNameOf).map(esc).join(' & ')+' down with them.</div>';
+    today.forEach((l,li)=>{
+      const nm=(l.dead||[]).map(playerNameOf).join(' and ');
+      const key='flav'+(r.num||1)+'-'+(l.day||1)+'-'+li+'-'+l.reason;
+      if(!flavCache[key]){
+        const src = l.reason==='shielded' ? FLAV_SAVE
+          : l.reason==='mafia-kill' ? FLAV_KILL
+          : l.reason==='lynch' ? FLAV_LYNCH
+          : l.reason==='sheriff-hit' ? FLAV_SHERIFF_HIT
+          : l.reason==='sheriff-miss' ? FLAV_SHERIFF_MISS
+          : l.reason==='guess-hit' ? FLAV_GUESS_HIT
+          : l.reason==='guess-backfire' ? FLAV_GUESS_BACK
+          : l.reason==='hunter' ? FLAV_HUNTER
+          : l.reason==='revive' ? FLAV_REVIVE : null;
+        if(src) flavCache[key]=flav(src, l.reason==='shielded'?playerNameOf(l.target):nm);
+      }
+      const txt=flavCache[key];
+      if(!txt) return;
+      const icon = l.reason==='shielded'?'🩺':l.reason==='mafia-kill'?'💀':l.reason==='lynch'?'⚖️'
+        :l.reason==='sheriff-hit'||l.reason==='sheriff-miss'?'🤠':l.reason==='hunter'?'🏹'
+        :l.reason==='revive'?'🕯️':'💥';
+      html+='<div class="elim-banner">'+icon+' '+esc(txt)+'</div>';
+      if(r.phase==='day') narrateOnce(key, txt);
     });
-    if(r.lastVote && r.lastVote.tie && r.lastVote.day===(r.dayNum||1)-1) html+='<div class="elim-banner">🤝 The vote tied — nobody was lynched.</div>';
+    if(r.lastVote && r.lastVote.tie && r.lastVote.day===(r.dayNum||1)-1){
+      const key='tie'+(r.num||1)+'-'+r.lastVote.day;
+      if(!flavCache[key]) flavCache[key]=flav(FLAV_TIE);
+      html+='<div class="elim-banner">🤝 '+esc(flavCache[key])+'</div>';
+      narrateOnce(key, flavCache[key]);
+    }
   }
 
   /* night: private action cards for whoever is awake */
@@ -2711,8 +2853,15 @@ function renderMafiaPanel(r, pids, players){
   }
 
   /* sheriff can shoot at any time while alive */
+  const deadList=pids.filter(p=>(r.eliminated||{})[p]);
   myAlive.forEach(pid=>{
     if(!privVisible(pid)) return;
+    if((r.roles||{})[pid]==='undertaker' && !r.reviveUsed && deadList.length && r.phase!=='reveal'){
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">🕯️ Undertaker — '+esc(playerNameOf(pid))+'</div>'+
+        '<div class="muted">Once per game: bring someone back from the dead.</div>'+
+        '<select class="odds-sel" id="rev-'+pid+'">'+selOpts(deadList)+'</select> '+
+        '<button class="btn primary" onclick="undertakerRevive(\''+pid+'\')">🕯️ Revive</button></div>';
+    }
     if((r.roles||{})[pid]==='sheriff' && !r.sheriffUsed){
       html+='<div class="qcard"><div class="qname" style="color:#d0244b">🤠 Sheriff — '+esc(playerNameOf(pid))+'</div>'+
         '<div class="muted">One bullet, any time. Hit the mafia and they die. Miss and you die.</div>'+
