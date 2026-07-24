@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -42,16 +43,20 @@
   .takenchip{display:inline-block;background:#efeaff;color:#5a37ff;border-radius:999px;
     padding:6px 10px;font-weight:800;font-size:12px}
   .takenchip small{opacity:.6;font-weight:700}
-  .wavebar{position:relative;height:44px;border-radius:999px;margin-top:8px;
+  .wavewrap{position:relative;margin-top:6px;padding-bottom:22px}
+  .wavebar{position:relative;height:40px;border-radius:999px;
     background:linear-gradient(90deg,#7ec8ff,#efeaff,#ff9db4)}
-  .wavemark{position:absolute;top:-4px;width:3px;height:52px;transform:translateX(-50%);border-radius:2px}
-  .wavemark span{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10px;
-    font-weight:900;white-space:nowrap;color:#333}
+  .wavemark{position:absolute;top:-6px;width:3px;height:52px;transform:translateX(-50%);border-radius:2px}
+  .wavemark span{position:absolute;font-size:11px;font-weight:900;white-space:nowrap;
+    background:rgba(255,255,255,.92);padding:1px 5px;border-radius:6px}
   .wavetick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.16);transform:translateX(-50%)}
-  .wavetick b{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);font-size:10px;
-    font-weight:900;color:#888}
+  .wavetick b{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);font-size:10px;
+    font-weight:900;color:#999}
   .wavereadout{text-align:center;font-weight:1000;font-size:28px;color:#5a37ff;margin-top:4px}
-  .wavelabels{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#666;margin-top:6px}
+  .wavelabels{display:flex;justify-content:space-between;gap:14px;font-size:12px;font-weight:800;
+    color:#666;margin-top:22px;line-height:1.3}
+  .wavelabels span{max-width:46%}
+  .wavelabels span:last-child{text-align:right}
   .waveslider{width:100%;margin-top:10px;accent-color:#5a37ff;height:34px}
   .modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
   .modegrid button{appearance:none;text-align:left;border:2px solid #e9e7f7;background:#fff;color:#222;
@@ -171,7 +176,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v32</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v33</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -409,6 +414,8 @@
       <h3>Host controls</h3>
       <div class="row" style="margin-bottom:8px">
         <button class="btn primary" onclick="hostStartRound()">New Round</button>
+        <button class="btn secondary" id="skipQBtn" onclick="hostSkipQuestion()" style="display:none">🔀 Skip question</button>
+        <button class="btn ghost" onclick="hostBackToLobby()">↩ Back to lobby</button>
         <button class="btn primary" id="voteBtn" onclick="hostStartVote()" style="display:none">🗳 Start the Vote</button>
         <button class="btn secondary" id="revealBtn" onclick="hostReveal()">Reveal Answer</button>
       </div>
@@ -1773,270 +1780,359 @@ function pickArtWord(st){
 }
 
 
+
 /* ================= MOST LIKELY TO ================= */
 const MOST_LIKELY=[
- "get arrested for something incredibly stupid",
- "cry at an advert",
- "survive a zombie apocalypse",
- "die first in a zombie apocalypse",
- "get lost in their own town",
- "accidentally send a screenshot to the person it's about",
- "become a millionaire",
- "lose all their money on something ridiculous",
- "start a fight they cannot win",
- "get barred from a Wetherspoons",
- "marry someone they met that same night",
- "forget their own birthday",
- "have a secret second phone",
- "be late to their own wedding",
- "sing to the taxi driver",
- "fall asleep at a festival",
- "get scammed by an obvious email",
- "adopt seventeen cats",
- "become internet famous for something embarrassing",
- "eat something off the floor without hesitating",
- "start a podcast nobody asked for",
- "get a tattoo they immediately regret",
- "leave the group chat dramatically",
- "reply to everything with a voice note",
- "be caught talking to themselves",
- "get stuck up a tree",
- "pretend to know a song they've never heard",
- "argue with a self-checkout machine",
- "become a cult leader",
- "join a cult by accident",
- "get told off in a museum",
- "spend their last tenner on a kebab",
- "get emotional over a dog they just met",
- "text their ex at 2am",
- "be the last one dancing",
- "fake an injury to get out of something",
- "have the messiest bedroom in here",
- "become a millionaire and tell nobody",
- "get chased by a farm animal",
- "start crying during an argument they're winning",
- "be recognised on the news for the wrong reason",
- "eat an entire sharing bag alone",
- "fall over on a night out and blame the pavement",
- "get a job they're completely unqualified for",
- "lie on a first date",
- "become an influencer",
- "get banned from a pub quiz for cheating",
- "still be awake at 6am for no reason",
- "have a full conversation with a stranger's dog",
- "accidentally reveal a secret",
- "get lost following a shortcut",
- "spend £200 on something they use once",
- "own an unnecessary amount of skincare",
- "be caught lip-syncing in the mirror",
- "start a business that fails spectacularly",
- "get a nickname they hate and can't shake",
- "be the friend who plans nothing but complains most",
- "trip over absolutely nothing",
- "be found asleep somewhere strange",
- "get emotional watching sport",
- "be the last one to know the gossip",
- "argue with a bouncer",
- "get sunburnt in England",
- "leave their card behind the bar",
- "become teetotal for a week and tell everyone",
- "be caught eating in a supermarket before paying",
- "get told to lower their voice in public",
- "have a full breakdown over flat-pack furniture",
- "accidentally like a photo from 2014",
- "call their teacher 'mum'",
- "run a marathon with zero training",
- "convince the group to do something they'll regret",
- "get overly attached to a fictional character",
- "reply 'k' and cause a war",
- "put on a bizarre accent for no reason",
- "get a parking ticket in a car park they own a permit for",
- "be found in the kitchen at a house party",
- "take a photo of their food every time",
- "get emotionally attached to a plant",
- "cause chaos in a group chat then go silent",
- "get stopped at airport security",
- "wear something completely inappropriate for the weather",
- "insist they're not drunk while clearly drunk",
- "be the first to say 'shall we get another one'",
- "get a whole room to do something stupid",
- "still be doing the same job in 30 years",
- "move abroad on a whim",
- "faint at the sight of blood",
- "start collecting something weird",
- "get told off by a lifeguard",
- "sell everything and go travelling",
- "become suspiciously good at something random",
- "have the worst taste in music here",
- "be caught singing in the car",
- "borrow money and never mention it again",
- "get into an argument about the correct way to make a brew",
- "be the reason the group is late",
- "have an emotional support snack in their bag",
- "get a dog and name it something ridiculous",
- "post something at 3am they delete by 9am",
- "be the last one standing at Christmas",
- "somehow win a fight against a goose",
- "get themselves banned from a group holiday",
- "still be talking when everyone's gone quiet",
- "put ketchup on something it doesn't belong on",
- "book a holiday on the wrong dates",
- "get emotional about a song from their teens",
- "take a joke way too far",
- "have a secret talent nobody knows about",
- "become the fun one at a funeral",
- "get told off in a library at their big age",
- "fall for an obvious wind-up",
- "cause an incident at an all-inclusive",
- "keep a receipt for eleven years",
- "eat a takeaway in bed and deny it",
- "be caught out lying about something pointless",
- "get famous, then ruin it in a week"
+ "get arrested and immediately ask for a solicitor they saw on telly",
+ "be caught weeing in a garden that isn't theirs",
+ "get banned from an all-you-can-eat buffet by name",
+ "have a genuinely horrifying story about a toilet abroad",
+ "get caught going through someone's bathroom cabinet",
+ "throw up in a taxi and try to blame the driver",
+ "get stuck in a window trying to break into their own house",
+ "have an ambulance called over something completely trivial",
+ "start crying at a strip club",
+ "be recognised from CCTV on a local Facebook group",
+ "get a rash from something they refuse to explain",
+ "eat something out of a bin and stand by the decision",
+ "lose a tooth doing something incredibly stupid",
+ "get caught out lying about their own age",
+ "have a full argument with a stranger over a parking space",
+ "be sick into their own hands to avoid making a mess",
+ "get a tattoo of someone's name and regret it within a fortnight",
+ "have a doctor's appointment they'd never tell anyone about",
+ "get barred from a soft play centre",
+ "be caught doing something unspeakable in a Premier Inn",
+ "have a nan who could genuinely beat them in a fight",
+ "get their card declined in front of a big queue",
+ "text something filthy to entirely the wrong person",
+ "wet themselves laughing, properly, as an adult",
+ "get caught on Google Street View doing something incriminating",
+ "have to explain a smell in their car",
+ "start a fight in a chip shop at 3am",
+ "be found asleep in a supermarket",
+ "have a bodily function ruin a first date",
+ "get their stomach pumped and post about it",
+ "be the reason a group holiday gets cancelled",
+ "get caught out by their own search history",
+ "have to be cut out of clothing by professionals",
+ "get emotionally attached to a stranger on a night out",
+ "be sick in a bag on a plane and drop it",
+ "have an unexplained injury they refuse to discuss",
+ "get caught having a conversation with themselves in a mirror",
+ "break something expensive and quietly put it back",
+ "be banned from a group chat for one specific message",
+ "have a stag do that ends in an actual police caution",
+ "get food poisoning and blame someone innocent",
+ "be caught out miming the words at a funeral",
+ "have their mum find something in their room as an adult",
+ "start an argument they can't remember starting",
+ "be sick and carry on drinking anyway",
+ "get themselves banned from a gym for hygiene reasons",
+ "have to explain themselves to a hotel manager",
+ "get a nickname based on something disgusting they did",
+ "be caught weeing in a hotel wardrobe",
+ "somehow injure themselves on a bouncy castle at 30",
+ "have a wound they treated entirely wrong",
+ "get emotional about a sausage roll",
+ "be escorted out of a wedding",
+ "have to burn a mattress",
+ "get caught eating in the shower",
+ "be the reason a taxi driver refuses the fare",
+ "have their phone confiscated by a partner",
+ "get a piercing infected within a week",
+ "be caught out by a smell they thought they'd got away with",
+ "have to leave a job over something they said",
+ "get themselves stuck in a onesie in a public toilet",
+ "start a rumour about themselves and forget",
+ "be sick on a rollercoaster and hit someone behind",
+ "have a full breakdown in an IKEA",
+ "get caught out lying about their weekend",
+ "be barred from a Wetherspoons in three different towns",
+ "have a bin bag of clothes they can never explain",
+ "get scabies from a festival",
+ "be caught out doing something weird by a delivery driver",
+ "have to go to A&E over something they'd never admit",
+ "get a warning from the council",
+ "be sick into a pint glass and hand it back",
+ "have a shed nobody is allowed in",
+ "get themselves trapped in a portaloo",
+ "be found at 6am in someone else's clothes",
+ "have to explain a stain to a landlord",
+ "get caught out by their own group chat screenshot",
+ "be the one who breaks the toilet at a house party",
+ "have a story about a bodily fluid on public transport",
+ "get intimate with someone they'd never mention again",
+ "be sick in a shoe rather than move",
+ "have a doctor say 'I've never seen that before'",
+ "get themselves on a local news bulletin for the wrong reason",
+ "be caught out by a nanny cam",
+ "have to be carried out of a venue",
+ "get a curry so hot they cry in public",
+ "be caught licking something they shouldn't",
+ "have an argument with a horse",
+ "get themselves permanently banned from a Toby Carvery",
+ "be found asleep in a bath, fully clothed",
+ "have to explain themselves to a lifeguard",
+ "get a stain on something borrowed and return it anyway",
+ "be sick in their own bag and zip it up",
+ "have an incident with a hand dryer",
+ "get caught out chatting rubbish by someone who was there",
+ "be the reason a hot tub has to be drained",
+ "have to be talked down from a very bad tattoo",
+ "get themselves stuck up something with no explanation",
+ "be caught out by a receipt in a coat pocket",
+ "have an ex who still tells the story",
+ "get themselves ill from eating something out of date on purpose",
+ "be found in the wrong hotel room entirely",
+ "have to leave a restaurant before the food arrives",
+ "get caught out by a photo they didn't know existed",
+ "be sick into a plant pot and say nothing",
+ "have to be rescued from a lilo",
+ "get themselves in trouble over a comment on Facebook",
+ "be found in a wheelie bin, laughing",
+ "have a haircut so bad they wear a hat for a month",
+ "get themselves banned from a taxi firm",
+ "be the reason there's a new rule at work",
+ "have to explain a bruise in a very specific shape",
+ "get caught out talking about someone who's behind them",
+ "be sick on a mate and stay friends",
+ "have an incident involving a bidet",
+ "get themselves stuck in a paddling pool",
+ "be the one who ruins a wholesome moment",
+ "have a mate who won't let them forget one night",
+ "get caught doing something grim in a work toilet",
+ "be sick out of a moving car window with it shut",
+ "have an unwashed item they've owned since school",
+ "get themselves into a fight with a seagull and lose badly",
+ "be caught out by a very specific tan line",
+ "have a phone full of photos nobody should see",
+ "get themselves banned from a caravan park",
+ "be the reason a sofa had to be thrown out",
+ "have a mate who has genuinely seen too much",
+ "get caught out by their own bin",
+ "be sick immediately after saying 'I'm fine'",
+ "have an injury from a slide at a water park",
+ "get themselves in a state over a bad kebab",
+ "be found with something inexplicable in their pocket",
+ "have to buy someone a new carpet",
+ "get caught out by a mirror they forgot about",
+ "be the one who says the unforgivable thing at Christmas dinner",
+ "have a story that always clears the room",
+ "get themselves stuck to something",
+ "be sick in a bin and apologise to it"
 ];
 
 /* ================= GUESS WHO SAID IT ================= */
 const WHO_SAID=[
- "What's the worst thing you've ever said out loud?",
- "What's a hill you'd genuinely die on?",
- "What's the pettiest reason you've fallen out with someone?",
- "What's something you pretend to enjoy?",
- "What's your most irrational fear?",
- "What's the biggest lie you've told to get out of plans?",
- "What's your guilty pleasure TV show?",
- "What's the weirdest thing in your house right now?",
- "What's something everyone loves that you can't stand?",
- "What's the worst haircut you've ever had?",
- "What did you want to be when you were eight?",
- "What's your most embarrassing search history entry?",
- "What's the most childish thing you still do?",
- "What's the last thing that made you properly laugh?",
- "What's your worst habit?",
- "What's something you'd never admit to your boss?",
- "What's the strangest compliment you've received?",
- "What's your go-to excuse for leaving early?",
- "What's the worst gift you've ever been given?",
- "What's a small thing that makes you unreasonably angry?",
- "What's the last thing you cried at?",
- "What's your most useless talent?",
- "What's something you've broken and never owned up to?",
- "What's the worst advice you've ever taken?",
- "What's the strangest thing you've eaten?",
- "What's your most-used emoji, and be honest?",
- "What's the biggest waste of money you've committed to?",
- "What's a rumour you'd love to start about yourself?",
- "What's the most unhinged thing in your camera roll?",
- "What would your autobiography be called?",
- "What's the worst job you've ever had?",
- "What's something you're weirdly competitive about?",
- "What's your most controversial food opinion?",
- "What's the last thing you Googled?",
- "What's something you did as a kid that you got away with?",
- "What's the worst thing about you as a housemate?",
- "What's the nicest thing anyone's done for you?",
- "What's a phrase you say far too often?",
- "What's your dream way to spend £10,000 in one day?",
+ "What's the most disgusting thing you've done and got away with?",
+ "What's the worst thing you've ever said out loud to another human?",
+ "What's the grimmest thing in your house right now?",
+ "What's the longest you've gone without washing something you should have?",
+ "What's the worst thing you've done in someone else's bathroom?",
+ "What's a bodily function story you'd normally take to the grave?",
+ "What's the worst thing you've eaten out of desperation?",
+ "What's the most embarrassing reason you've been to a doctor?",
+ "What's the pettiest revenge you've ever taken?",
  "What's the worst thing you've done on a night out?",
- "What's something you'd change about yourself if it took ten seconds?",
- "What's the strangest place you've fallen asleep?",
- "What's a talent you wish you had?",
- "What's your most-repeated argument with someone close to you?",
- "What's the last thing you regretted buying?",
- "What's a movie you'd happily watch every week?",
- "What's the worst text you've ever sent?",
- "What's something you're secretly proud of?",
- "What's the biggest risk you've ever taken?",
- "What's a food you loved as a kid and can't face now?",
- "What's your worst injury and how did it happen?",
- "What's something you'd do if you knew nobody would find out?",
- "What's the most annoying thing someone can do in a car?",
- "What's your unpopular opinion about Christmas?",
- "What's a job you'd be brilliant at but would never do?",
- "What's the longest you've gone without sleep?",
- "What's the most you've ever spent on a single night out?",
- "What's a lie you tell yourself regularly?",
- "What's the worst film you've paid to watch?",
- "What's something you're always late for?",
- "What's your most reliable party trick?",
- "What's the strangest thing you find attractive?",
- "What's a compliment you'd love to receive?",
- "What's the last thing you stole, however small?",
- "What's a rule you break constantly?",
- "What's the thing you'd grab in a house fire?",
- "What's your worst holiday experience?",
- "What's something you've never told your parents?",
- "What's the daftest thing you've cried about as an adult?",
- "What's a trend you fell for and now deny?",
- "What's the most awkward thing you've walked in on?",
- "What's your biggest ick?",
- "What's the worst thing you've cooked?",
- "What's something you'd take to a desert island that isn't useful?",
- "What's the pettiest thing you've done to get revenge?",
- "What's a song you know every word to and shouldn't?",
- "What's something you own far too many of?",
- "What's the worst nickname you've ever had?",
- "What's a place you'd never go back to?",
- "What's the most money you've found?",
- "What's something you're irrationally superstitious about?",
- "What's the worst thing about your own personality?",
- "What's the biggest fib on your CV?",
- "What's something you can't do that everyone assumes you can?",
- "What's the weirdest dream you actually remember?",
- "What's a thing you've been meaning to fix for over a year?",
- "What's the worst thing you've said to a customer or a boss?",
- "What's your most reliable comfort food?",
- "What's the pettiest thing that ruins your day?",
+ "What's something you've stolen and never confessed to?",
+ "What's the most unhygienic thing you do regularly?",
+ "What's the worst lie you've told to get out of work?",
+ "What's the strangest thing you've done completely sober?",
+ "What's the worst thing you've said to someone you love?",
+ "What's the most humiliating thing that's happened to you in public?",
+ "What's the worst state you've ever left a toilet in?",
+ "What's the most disgusting thing you find weirdly satisfying?",
+ "What's the worst thing you've done to a housemate?",
+ "What's something you've done that would genuinely disgust your mum?",
+ "What's the worst injury you've caused someone by accident?",
+ "What's the strangest place you've been sick?",
+ "What's the worst thing you've found in your own bed?",
+ "What's the most shameful thing you've cried about?",
+ "What's the worst thing you've said in an argument?",
+ "What's the grimmest thing you've done to save money?",
+ "What's the longest you've worn the same pair of socks?",
+ "What's the worst thing you've done at a family gathering?",
+ "What's something you've done that you'd deny in court?",
+ "What's the most disgusting habit of yours nobody knows about?",
+ "What's the worst thing you've done to get out of plans?",
+ "What's the strangest thing you've been caught doing?",
+ "What's the worst thing you've done on public transport?",
  "What's the most embarrassing thing you own?",
- "What's something you'd bring back from your childhood?",
- "What's the last thing you binged in one sitting?",
- "What's your worst driving moment?",
- "What's something you'd never share a bed with someone over?",
- "What's the most trouble you've been in?",
- "What's your least attractive quality first thing in the morning?",
- "What's something you've faked being good at?",
+ "What's the worst thing you've done while drunk and remembered?",
+ "What's something you've done that's technically a crime?",
+ "What's the grimmest thing you've eaten off the floor?",
+ "What's the worst thing you've said to a stranger?",
+ "What's the most disgusting thing in your car?",
+ "What's the worst thing you've done in a hotel room?",
+ "What's something about your body you'd never mention?",
+ "What's the worst thing you've done to an ex?",
  "What's the strangest thing you've done for money?",
- "What's a memory that still makes you cringe?",
- "What's the best lie you've ever got away with?"
+ "What's the most humiliating nickname you've had?",
+ "What's the worst thing you've done at work?",
+ "What's the grimmest shared item you've used?",
+ "What's the worst thing that's happened to you in a swimming pool?",
+ "What's something you've faked and got away with?",
+ "What's the worst thing you've done to a pet?",
+ "What's the most embarrassing thing you've had to buy?",
+ "What's the worst thing you've said about someone who then heard it?",
+ "What's the strangest thing you've slept on?",
+ "What's the worst thing you've done to a friend's belongings?",
+ "What's the most disgusting thing you've drunk?",
+ "What's the worst thing you've done on holiday?",
+ "What's something you'd be sacked for if they found out?",
+ "What's the grimmest place you've fallen asleep?",
+ "What's the worst thing you've done to avoid an awkward conversation?",
+ "What's the most embarrassing thing you've said in your sleep?",
+ "What's the worst state you've turned up to something in?",
+ "What's the strangest thing you've had to explain to a doctor?",
+ "What's the worst thing you've done in a changing room?",
+ "What's something you've done that made you question yourself?",
+ "What's the most disgusting thing you've touched voluntarily?",
+ "What's the worst thing you've done to a taxi?",
+ "What's the grimmest thing you've reused?",
+ "What's the worst thing you've been caught looking at?",
+ "What's the most embarrassing injury you've had?",
+ "What's the worst thing you've done at a wedding?",
+ "What's something you've hidden from everyone in this room?",
+ "What's the strangest thing you've done to impress someone?",
+ "What's the worst thing you've done in a public toilet?",
+ "What's the most shameful thing you've bought online at 2am?",
+ "What's the worst thing you've done to get someone to leave?",
+ "What's the grimmest thing you've slept in?",
+ "What's the worst thing you've done to a sibling?",
+ "What's something you've done that you'd rate a 10 for shame?",
+ "What's the most disgusting thing you've smelled and investigated anyway?",
+ "What's the worst thing you've done at a festival?",
+ "What's the strangest thing you've been questioned about?",
+ "What's the worst thing you've said to a customer?",
+ "What's the most embarrassing thing on your phone right now?",
+ "What's the worst thing you've done to a stranger's property?",
+ "What's the grimmest meal you've eaten and enjoyed?",
+ "What's the worst thing you've done that nobody suspects?",
+ "What's the strangest thing you've done in a mirror?",
+ "What's the worst thing you've done at a funeral?",
+ "What's something you've done that would end a friendship?",
+ "What's the most disgusting thing you've kept for too long?",
+ "What's the worst thing you've done in a shared kitchen?",
+ "What's the strangest thing you've woken up next to?",
+ "What's the worst thing you've been caught wearing?",
+ "What's the grimmest thing you've done in a rush?",
+ "What's the worst thing you've done at a sleepover?",
+ "What's something you've done that you blame entirely on alcohol?",
+ "What's the most embarrassing thing you've had to Google urgently?",
+ "What's the worst thing you've done to a shared bathroom?",
+ "What's the strangest thing you've hidden and forgotten?",
+ "What's the worst thing you've done to win something?",
+ "What's the grimmest thing about living with you?",
+ "What's the worst thing you've done and immediately laughed at?",
+ "What's something you've done that you'd need a lawyer to explain?",
+ "What's the most disgusting thing you've done while cooking?",
+ "What's the worst thing you've done to a night out that wasn't yours?",
+ "What's the strangest thing you've been thrown out of?",
+ "What's the worst thing you've said to a family member?",
+ "What's the grimmest injury you've treated yourself?",
+ "What's the worst thing you've done in front of a mirror at a party?",
+ "What's something you've done that you're weirdly proud of?"
 ];
 
-
-/* ================= LAST ONE STANDING ================= */
-/* Grouped by how many answers exist. Rounds get narrower as players drop. */
+/* ================= NAME SOMETHING (Last One Standing) ================= */
 const LAST_STANDING={
 broad:[
- "Name a colour","Name a country","Name an animal","Name a food you'd find in a chippy",
- "Name a Premier League club","Name a job","Name something in a kitchen","Name a fruit",
- "Name a crisp flavour","Name something you'd take on holiday","Name a boy's name",
- "Name a girl's name","Name something in a bathroom","Name a sport","Name a chocolate bar",
- "Name a city in the UK","Name something you'd find in a pub","Name a type of vehicle",
- "Name a Disney film","Name something in a supermarket","Name a takeaway dish",
- "Name a soap opera character","Name something you'd wear","Name a musical instrument",
- "Name a breed of dog","Name something in a school","Name a board game",
- "Name a fizzy drink","Name a biscuit","Name something you'd find in a garden"
+ "Name a body part you'd least like to break",
+ "Name something you'd find in a student's fridge",
+ "Name something you'd never share with a stranger",
+ "Name a smell that ruins a room",
+ "Name something you'd find in a nightclub toilet",
+ "Name a reason to fake being ill",
+ "Name something you shouldn't microwave",
+ "Name a bad place to be sick",
+ "Name something you'd hide before a date comes round",
+ "Name something you'd find in a bin behind a pub",
+ "Name a terrible thing to say in bed",
+ "Name a bad place to fall asleep",
+ "Name something you'd find in a builder's van",
+ "Name a food you'd eat past its date",
+ "Name a bad reason to be late",
+ "Name something people lie about",
+ "Name a bad thing to find in a kebab",
+ "Name a reason to leave a party early",
+ "Name something you'd find in a teenager's bedroom",
+ "Name a body part people are self-conscious about",
+ "Name a bad place to lose your phone",
+ "Name something you'd find at a festival on day four",
+ "Name a terrible first date location",
+ "Name something you'd never eat cold",
+ "Name a reason to block someone",
+ "Name a bad thing to shout in public",
+ "Name something you'd find in a taxi at 4am",
+ "Name a bad place to get stuck",
+ "Name something you'd find under a teenager's bed",
+ "Name a rubbish superpower"
 ],
 medium:[
- "Name a planet","Name a Beatles song","Name a UK soap opera","Name a big cat",
- "Name a Harry Potter house","Name a British seaside town","Name a card game",
- "Name a month with 31 days","Name a Marvel Avenger","Name a Christmas song",
- "Name a European capital city","Name a type of pasta","Name a Grand Slam tennis tournament",
- "Name a Spice Girl's nickname","Name an Olympic swimming stroke","Name a Monopoly property colour",
- "Name a member of the royal family","Name a British prime minister","Name a Toy Story character",
- "Name a flavour of Fanta","Name a snooker ball colour","Name a Simpsons family member",
- "Name a UK bank","Name a supermarket in the UK","Name a Friends main character",
- "Name a type of triangle","Name a Roald Dahl book","Name a Star Wars character",
- "Name a Christmas dinner side","Name a UK motorway"
+ "Name a body fluid",
+ "Name a reason to call in sick that nobody believes",
+ "Name a thing that lives in a shared fridge and shouldn't",
+ "Name a place you'd never eat from twice",
+ "Name a household item people misuse",
+ "Name a bad thing to be famous for",
+ "Name something that ruins a swimming pool",
+ "Name a thing you'd never lend out",
+ "Name a bad tattoo",
+ "Name a smell you can't wash out",
+ "Name a bad thing to find in a hotel bed",
+ "Name a thing people do in cars alone",
+ "Name a reason to leave a group chat",
+ "Name a food that gets you judged",
+ "Name a bad thing to keep in a shed",
+ "Name a thing that ruins a hot tub",
+ "Name a place you'd never go barefoot",
+ "Name a bad excuse for a bruise",
+ "Name a thing you'd never buy secondhand",
+ "Name a reason a night out ends early",
+ "Name a bad thing to say to a bouncer",
+ "Name a thing that ruins a shared bathroom",
+ "Name a bad place to have an itch",
+ "Name a thing people hide from their partner",
+ "Name a bad thing to be caught doing at work",
+ "Name a thing that ruins a car boot",
+ "Name a bad place to have a nosebleed",
+ "Name a thing you'd bin rather than clean",
+ "Name a bad thing to find in a washing machine",
+ "Name a thing nobody admits to doing"
 ],
 narrow:[
- "Name a Beatle","Name a Ninja Turtle","Name a primary colour","Name a Teletubby",
- "Name a Musketeer","Name a season","Name a Chuckle Brother","Name a state of matter",
- "Name a member of ABBA","Name a Rice Krispies elf","Name a compass direction",
- "Name a Wright brother","Name a Sugababe","Name a McDonald's original character",
- "Name a Pokemon starter from the first game","Name a Blues Brother",
- "Name a Mario Kart item that slows people down","Name a Weasley twin",
- "Name a Krusty Krab employee","Name a Mr Men colour","Name a Hanson brother",
- "Name a Gallagher brother","Name a Cheeky Girl","Name a Proclaimer",
- "Name a Wombles character","Name a Mitchell brother from EastEnders",
- "Name a Rocky opponent from the first two films","Name a Chuckle Vision catchphrase word",
- "Name one of the Three Little Pigs' building materials","Name a Bee Gee"
+ "Name a bodily noise",
+ "Name something that comes out of a nose",
+ "Name a place on the body you can't reach",
+ "Name a thing that grows where it shouldn't",
+ "Name a reason to burn a mattress",
+ "Name a thing that only happens after a curry",
+ "Name a bad thing to find in a swimming pool",
+ "Name a thing you can catch from a festival toilet",
+ "Name a body part you'd never tattoo",
+ "Name a thing that ruins a mattress permanently",
+ "Name a noise that means it's gone wrong",
+ "Name a thing you'd need a doctor to remove",
+ "Name a reason to throw away a towel",
+ "Name a thing that's worse when it's warm",
+ "Name a place you'd never put a piercing",
+ "Name a thing that survives being washed and shouldn't",
+ "Name a reason to move house immediately",
+ "Name a thing that ruins a shoe forever",
+ "Name a smell that means something has died",
+ "Name a thing you can't unsee",
+ "Name a body part that makes people wince",
+ "Name a thing that gets stuck and shouldn't",
+ "Name a reason to never use that bathroom again",
+ "Name a thing that comes back up",
+ "Name a noise a body should never make",
+ "Name a thing you'd find in a hospital bin",
+ "Name a reason to throw away a pillow",
+ "Name a thing that leaks",
+ "Name a place a splinter would be unbearable",
+ "Name a thing that crawls"
 ]
 };
 
@@ -2438,16 +2534,20 @@ async function applyWhoSaidScores(r, pids){
   pids.forEach(p=>{ if((r.answers||{})[p] && !foundBy[p]) bump(p,2); });
   for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
 }
-/* Crowned player +2, and +1 to everyone who read the room right */
+/* The interesting call isn't "who do I think" — it's "who does this room think".
+   So the points go to whoever reads the group right. Getting crowned is the
+   punchline, not the prize. */
 async function applyLikelyScores(r, pids){
   const tally={};
   Object.values(r.votes||{}).forEach(t=>{ tally[t]=(tally[t]||0)+1; });
   const max=Math.max(0,...Object.values(tally));
-  const top=Object.keys(tally).filter(p=>tally[p]===max && max>0);
+  /* if everyone picked someone different there was no room to read — nobody scores */
+  if(max<2) return;
+  const top=Object.keys(tally).filter(p=>tally[p]===max);
   const updates={};
-  const bump=(pid,d)=>{ if(d) updates[pid]=(updates[pid]??(game.scores?.[pid]||0))+d; };
-  top.forEach(p=>bump(p,2));
-  Object.entries(r.votes||{}).forEach(([voter,t])=>{ if(top.includes(t)) bump(voter,1); });
+  Object.entries(r.votes||{}).forEach(([voter,t])=>{
+    if(top.includes(t)) updates[voter]=(game.scores?.[voter]||0)+2;
+  });
   for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
 }
 
@@ -2456,16 +2556,25 @@ async function applyLikelyScores(r, pids){
 
 /* ---------- Last One Standing ---------- */
 function tierFor(qNum){ return qNum<=2 ? 'broad' : qNum<=4 ? 'medium' : 'narrow'; }
-function dealLastStandingRound(pids, st, num){
-  const order=shuffle(pids.slice());
-  return {mode:'laststanding', num, phase:'answer', qNum:1,
-          question:pickQ(LAST_STANDING.broad,'ls-broad'),
-          order, turnIdx:0, given:{}, out:{}, scored:false, timerEndsAt:0};
-}
 function lsAlive(r, pids){ return pids.filter(p=>!(r.out||{})[p]); }
-function lsCurrent(r, pids){
-  const order=(r.order||[]).filter(p=>!(r.out||{})[p]);
-  return order[(r.turnIdx||0)%Math.max(1,order.length)];
+/* One player leads and secretly picks an answer. Everyone else answers blind —
+   match the leader and you're out. A new leader takes over each question. */
+function dealLastStandingRound(pids, st, num){
+  return {mode:'laststanding', num, phase:'lead', qNum:1,
+          question:pickQ(LAST_STANDING.broad,'ls-broad'),
+          leader:pids[(num-1)%pids.length],
+          leadAnswer:null, answers:{}, out:{}, scored:false, timerEndsAt:0};
+}
+async function submitLeadAnswer(pid){
+  const r=game?.round; if(!r || r.phase!=='lead') return;
+  const inp=document.getElementById('lslead-'+pid);
+  if(!inp) return;
+  const txt=inp.value.trim();
+  if(!txt) return toast('Type an answer');
+  privOpenFor=null;
+  await db.ref('games/'+CODE+'/round/leadAnswer').set(txt.slice(0,40));
+  await db.ref('games/'+CODE+'/round/phase').set('answer');
+  haptic('medium');
 }
 async function submitLastAnswer(pid){
   const r=game?.round; if(!r || r.phase!=='answer') return;
@@ -2473,18 +2582,68 @@ async function submitLastAnswer(pid){
   if(!inp) return;
   const txt=inp.value.trim();
   if(!txt) return toast('Type an answer');
-  const taken=Object.values(r.given||{});
-  const clash=taken.some(t=>fuzzyMatch(txt, t));
-  const base='games/'+CODE+'/round/';
-  if(clash){
-    await db.ref(base+'out/'+pid).set(true);
-    await db.ref(base+'lastOut').set({pid, answer:txt.slice(0,40)});
-  }else{
-    await db.ref(base+'given/'+pid).set(txt.slice(0,40));
-    await db.ref(base+'lastOut').remove();
-  }
-  await db.ref(base+'turnIdx').set((r.turnIdx||0)+1);
-  haptic(clash?'heavy':'medium');
+  privOpenFor=null;
+  await db.ref('games/'+CODE+'/round/answers/'+pid).set(txt.slice(0,40));
+  haptic('medium');
+}
+/* Reveal: anyone who matched the leader goes out. Leader scores per catch. */
+async function resolveLastStanding(r, pids){
+  const alive=lsAlive(r, pids);
+  const caught=[];
+  alive.forEach(p=>{
+    if(p===r.leader) return;
+    const a=(r.answers||{})[p];
+    if(a && fuzzyMatch(a, r.leadAnswer)) caught.push(p);
+  });
+  for(const p of caught) await db.ref('games/'+CODE+'/round/out/'+p).set(true);
+  if(caught.length) await db.ref('games/'+CODE+'/scores/'+r.leader)
+    .set((game.scores?.[r.leader]||0)+caught.length);
+  await db.ref('games/'+CODE+'/round').update({caught, phase:'reveal'});
+}
+/* Host can bin a question nobody likes and pull a fresh one */
+async function hostBackToLobby(){
+  if(!IS_HOST || !game) return;
+  if(!confirm('Send everyone back to the lobby? The current round ends.')) return;
+  flushSpeech(); privOpenFor=null; secRunning=null;
+  await db.ref('games/'+CODE+'/round').remove();
+  await db.ref('games/'+CODE+'/status').set('lobby');
+  haptic('medium');
+}
+async function hostSkipQuestion(){
+  if(!IS_HOST || !game?.round) return;
+  const r=game.round, base='games/'+CODE+'/round';
+  const pids=Object.keys(game.players||{});
+  if(r.mode==='likely'){
+    await db.ref(base).update({question:pickQ(MOST_LIKELY,'likely'), votes:null, scored:null, phase:'vote'});
+  }else if(r.mode==='whosaid'){
+    await db.ref(base).update({question:pickQ(WHO_SAID,'whosaid'), answers:null, guesses:null,
+      order:null, scored:null, phase:'answer'});
+  }else if(r.mode==='laststanding'){
+    const tier=tierFor(r.qNum||1);
+    await db.ref(base).update({question:pickQ(LAST_STANDING[tier],'ls-'+tier),
+      leadAnswer:null, answers:null, caught:null, phase:'lead'});
+  }else if(r.mode==='wavelength'){
+    const sp=pickQ(SPECTRUMS.map(x=>x.join('|')),'wave').split('|');
+    await db.ref(base).update({left:sp[0], right:sp[1], target:5+Math.floor(Math.random()*91),
+      clue:null, guesses:null, scored:null, phase:'clue'});
+  }else return;
+  privOpenFor=null;
+  toast('New question');
+  haptic('medium');
+}
+async function hostNextLastQuestion(){
+  if(!IS_HOST || !game?.round) return;
+  const r=game.round, pids=Object.keys(game.players||{});
+  const alive=lsAlive(r, pids);
+  if(alive.length<=1) return;
+  const qNum=(r.qNum||1)+1;
+  const tier=tierFor(qNum);
+  const idx=alive.indexOf(r.leader);
+  await db.ref('games/'+CODE+'/round').update({
+    qNum, question:pickQ(LAST_STANDING[tier],'ls-'+tier),
+    leader:alive[(idx+1)%alive.length],
+    leadAnswer:null, answers:{}, caught:null, phase:'lead'
+  });
 }
 
 /* ---------- Wavelength ---------- */
@@ -2512,21 +2671,23 @@ async function submitGuess(pid){
   await db.ref('games/'+CODE+'/round/guesses/'+pid).set(parseInt(sl.value,10));
   haptic('medium');
 }
-/* Golf: your score is how far off you were, and it stacks up round after
-   round. Lowest total wins. Kept in its own tally so it can't scramble the
-   points-based scoreboard the other games use. */
-function golfOf(pid){ return (game && game.golf && game.golf[pid]) || 0; }
+/* GeoGuessr-style: a bullseye is worth the full 5000 and the curve falls away
+   sharply, so precision is rewarded far more than being roughly right. */
+function wavePoints(miss){
+  return Math.round(5000*Math.exp(-Math.pow(miss/15, 1.5)));
+}
+function waveOf(pid){ return (game && game.wave && game.wave[pid]) || 0; }
 async function applyWaveScores(r, pids){
   const updates={};
   let total=0, n=0;
   Object.entries(r.guesses||{}).forEach(([pid,g])=>{
-    const miss=Math.abs(g-r.target);
-    updates[pid]=golfOf(pid)+miss;
-    total+=miss; n++;
+    const pts=wavePoints(Math.abs(g-r.target));
+    updates[pid]=waveOf(pid)+pts;
+    total+=pts; n++;
   });
-  /* the psychic carries the room's average miss — a vague clue costs them */
-  if(n) updates[r.psychic]=golfOf(r.psychic)+Math.round(total/n);
-  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/golf/'+pid).set(v);
+  /* the clue-giver earns the room's average — a clue only one person gets is worth less */
+  if(n) updates[r.psychic]=waveOf(r.psychic)+Math.round(total/n);
+  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/wave/'+pid).set(v);
 }
 
 /* ═══════════════ Imposter word guess (+3) ═══════════════ */
@@ -2711,24 +2872,15 @@ async function hostAutoAdvance(){
   if(r.mode==='seconds' && r.phase==='play' && (r.turnIdx||0)>=(r.order||[]).length){
     await db.ref('games/'+CODE+'/round/phase').set('vote');
   }
-  if(r.mode==='laststanding' && r.phase==='answer'){
+  if(r.mode==='laststanding'){
     const alive=lsAlive(r, pids);
-    if(alive.length<=1){
-      if(!r.scored){
-        await db.ref('games/'+CODE+'/round/scored').set(true);
-        if(alive[0]) await db.ref('games/'+CODE+'/scores/'+alive[0]).set((game.scores?.[alive[0]]||0)+5);
-        await db.ref('games/'+CODE+'/round/phase').set('reveal');
-      }
-      return;
+    if(r.phase==='answer'){
+      const others=alive.filter(p=>p!==r.leader);
+      if(others.length && others.every(p=>(r.answers||{})[p])) await resolveLastStanding(r, pids);
     }
-    /* everyone still in has answered — move to a narrower question */
-    if(alive.every(p=>(r.given||{})[p])){
-      const qNum=(r.qNum||1)+1;
-      const tier=tierFor(qNum);
-      await db.ref('games/'+CODE+'/round').update({
-        qNum, question:pickQ(LAST_STANDING[tier],'ls-'+tier),
-        given:{}, turnIdx:0, order:shuffle(alive.slice()), lastOut:null
-      });
+    if(r.phase==='reveal' && alive.length<=1 && !r.scored){
+      await db.ref('games/'+CODE+'/round/scored').set(true);
+      if(alive[0]) await db.ref('games/'+CODE+'/scores/'+alive[0]).set((game.scores?.[alive[0]]||0)+5);
     }
     return;
   }
@@ -3976,9 +4128,13 @@ function renderLikelyPanel(r, pids, players){
       const win=n===max && n>0;
       html+='<div class="timesrow"'+(win?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
         '<span>'+(win?'👑 ':'')+esc(playerNameOf(pid))+'</span>'+
-        '<span>'+n+(n===1?' vote':' votes')+(win?' · +2':'')+'</span></div>';
+        '<span>'+n+(n===1?' vote':' votes')+'</span></div>';
     });
-    html+='<p class="muted" style="text-align:center">Crowned player +2 · everyone who voted for them +1</p>';
+    const crowned=pids.filter(p=>(tally[p]||0)===max && max>0).map(playerNameOf).map(esc).join(' & ');
+    html+= max<2
+      ? '<p class="muted" style="text-align:center">Everyone picked someone different — no consensus, no points.</p>'
+      : '<p class="muted" style="text-align:center">👑 '+crowned+' — no points, just the shame.<br>'+
+        'Everyone who called it right: <b>+2</b> for reading the room.</p>';
   }
   safeSetHTML($('likelyContent'), html);
 }
@@ -4054,53 +4210,94 @@ function renderWhoSaidPanel(r, pids, players){
 function renderLastStandingPanel(r, pids, players){
   $('lastPanel').style.display='block';
   const alive=lsAlive(r, pids);
-  const cur=lsCurrent(r, pids);
   const myIds=myPlayerIds();
-  let html='<div class="revealbox"><div class="muted">Question '+(r.qNum||1)+' · '+alive.length+' still in</div>'+
+  const shared=myIds.length>1;
+  const others=alive.filter(p=>p!==r.leader);
+  let html='<div class="revealbox"><div class="muted">Question '+(r.qNum||1)+' · '+alive.length+' still in · '+
+    esc(playerNameOf(r.leader))+' is leading</div>'+
     '<div class="w" style="font-size:clamp(18px,5vw,26px);line-height:1.3">'+esc(r.question||'')+'</div></div>';
 
-  if(r.lastOut){
-    html+='<div class="elim-banner">💀 '+esc(playerNameOf(r.lastOut.pid))+' said "'+esc(r.lastOut.answer)+'" — already gone. OUT.</div>';
-  }
-
-  const taken=Object.entries(r.given||{});
-  if(taken.length){
-    html+='<div class="qcard"><div class="qname">Already said</div><div class="handwrap">'+
-      taken.map(([p,a])=>'<span class="takenchip">'+esc(a)+' <small>'+esc(playerNameOf(p))+'</small></span>').join('')+
-      '</div></div>';
+  if(r.phase==='lead'){
+    if(myIds.includes(r.leader) && privVisible(r.leader)){
+      html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+esc(playerNameOf(r.leader))+
+        ' — you\u2019re leading</div>'+
+        '<div class="muted">Pick the answer you reckon most of them will say. Anyone who matches you is out.</div>'+
+        '<textarea id="lslead-'+r.leader+'" rows="1" maxlength="40" placeholder="Your answer..."></textarea>'+
+        '<button class="btn primary" style="margin-top:6px" onclick="submitLeadAnswer(\''+r.leader+'\')">Lock It In</button></div>';
+    }else if(shared && !privOpenFor && myIds.includes(r.leader)){
+      html+='<p class="muted" style="text-align:center">Tap your name above to lead this one.</p>';
+    }else{
+      html+='<div class="turnbanner">🤐 '+esc(playerNameOf(r.leader))+' is choosing...</div>';
+    }
   }
 
   if(r.phase==='answer'){
-    if(myIds.includes(cur) && privVisible(cur)){
-      html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+esc(playerNameOf(cur))+' — your turn</div>'+
-        '<div class="muted">Say something nobody has said. Repeat one and you\u2019re out.</div>'+
-        '<textarea id="ls-'+cur+'" rows="1" maxlength="40" placeholder="Your answer..."></textarea>'+
-        '<button class="btn primary" style="margin-top:6px" onclick="submitLastAnswer(\''+cur+'\')">Lock It In</button></div>';
-    }else{
-      html+='<div class="turnbanner">⏳ '+esc(playerNameOf(cur))+'\u2019s turn</div>';
+    html+='<div class="turnbanner">Answer without matching '+esc(playerNameOf(r.leader))+'. No peeking.</div>';
+    myIds.forEach(pid=>{
+      if(!alive.includes(pid)) return;
+      if(pid===r.leader){
+        html+='<div class="qcard"><div class="muted">You\u2019ve set the trap. Watch them walk into it.</div></div>';
+        return;
+      }
+      if((r.answers||{})[pid]){
+        html+='<div class="answerrow"><div class="an">'+esc(playerNameOf(pid))+'</div><div class="at">Locked in ✅</div></div>';
+        return;
+      }
+      if(!privVisible(pid)) return;
+      html+='<div class="qcard"><div class="qname" style="color:#5a37ff">'+esc(playerNameOf(pid))+'</div>'+
+        '<textarea id="ls-'+pid+'" rows="1" maxlength="40" placeholder="Something they won\u2019t have said..."></textarea>'+
+        '<button class="btn primary" style="margin-top:6px" onclick="submitLastAnswer(\''+pid+'\')">Lock It In</button></div>';
+    });
+    if(shared && !privOpenFor && myIds.some(p=>alive.includes(p) && p!==r.leader && !(r.answers||{})[p])){
+      html+='<p class="muted" style="text-align:center">Tap your name above to answer.</p>';
     }
-    html+='<div class="qcard"><div class="qname">Still in</div><div class="handwrap">'+
-      alive.map(p=>'<span class="takenchip">'+esc(playerNameOf(p))+'</span>').join('')+'</div></div>';
+    html+='<p class="muted" style="text-align:center">'+Object.keys(r.answers||{}).length+'/'+others.length+' answered.</p>';
   }
 
   if(r.phase==='reveal'){
-    html+= alive.length
-      ? '<div class="revealbox"><div class="muted">Last one standing</div>'+
-        '<div class="w">'+esc(playerNameOf(alive[0]))+'</div><div class="imps">WINNER · +5</div></div>'
-      : '<div class="revealbox"><div class="w">Everybody out!</div><div class="imps">Nobody survived that one.</div></div>';
+    html+='<div class="revealbox"><div class="muted">'+esc(playerNameOf(r.leader))+' said</div>'+
+      '<div class="w">'+esc(r.leadAnswer||'')+'</div></div>';
+    const caught=r.caught||[];
+    others.concat(caught.filter(c=>!others.includes(c))).forEach(pid=>{
+      const a=(r.answers||{})[pid]||'—';
+      const gone=caught.includes(pid);
+      html+='<div class="timesrow"'+(gone?' style="border-color:#ffb3c6;background:#ffe9ee"':'')+'>'+
+        '<span>'+(gone?'💀 ':'✅ ')+esc(playerNameOf(pid))+'</span><span>'+esc(a)+'</span></div>';
+    });
+    html+= caught.length
+      ? '<div class="elim-banner">💀 '+caught.map(playerNameOf).map(esc).join(' & ')+' walked straight into it. '+
+        esc(playerNameOf(r.leader))+' +'+caught.length+'</div>'
+      : '<div class="elim-banner">😐 Nobody matched. '+esc(playerNameOf(r.leader))+' gets nothing.</div>';
+    const still=lsAlive(r, pids);
+    if(still.length<=1){
+      html+='<div class="revealbox"><div class="muted">Last one standing</div><div class="w">'+
+        esc(playerNameOf(still[0])||'Nobody')+'</div><div class="imps">WINNER · +5</div></div>';
+    }else if(IS_HOST){
+      html+='<button class="btn primary big" style="margin-top:8px" onclick="hostNextLastQuestion()">Next question ▶</button>';
+    }
+    html+='<div class="qcard"><div class="qname">Still in</div><div class="handwrap">'+
+      still.map(p=>'<span class="takenchip">'+esc(playerNameOf(p))+'</span>').join('')+'</div></div>';
   }
   safeSetHTML($('lastContent'), html);
 }
 
 /* ---------- Wavelength UI ---------- */
 function waveDial(leftLabel, rightLabel, marks){
-  let html='<div class="wavebar">';
+  /* labels are staggered up the page so close guesses don't sit on top of each other */
+  const sorted=(marks||[]).slice().sort((a,b)=>a.at-b.at);
+  const lanes=Math.min(4, Math.max(1, sorted.length));
+  let html='<div class="wavewrap" style="padding-top:'+(18+lanes*15)+'px">';
+  html+='<div class="wavebar">';
   [0,25,50,75,100].forEach(t=>{ html+='<div class="wavetick" style="left:'+t+'%"><b>'+t+'</b></div>'; });
-  (marks||[]).forEach(m=>{
+  sorted.forEach((m,i)=>{
+    const lift=14+(i%lanes)*15;
+    const side=m.at>82?'right:0;left:auto;transform:none':(m.at<18?'left:0;transform:none':'left:50%;transform:translateX(-50%)');
     html+='<div class="wavemark" style="left:'+m.at+'%;background:'+(m.colour||'#5a37ff')+'">'+
-      '<span>'+esc(m.label)+(m.at!==undefined?' '+m.at:'')+'</span></div>';
+      '<span style="bottom:calc(100% + '+lift+'px);'+side+';color:'+(m.colour||'#5a37ff')+'">'+
+      esc(m.label)+' '+m.at+'</span></div>';
   });
-  html+='</div><div class="wavelabels"><span>0 · '+esc(leftLabel)+'</span><span>'+esc(rightLabel)+' · 100</span></div>';
+  html+='</div>';
+  html+='<div class="wavelabels"><span>0 · '+esc(leftLabel)+'</span><span>'+esc(rightLabel)+' · 100</span></div></div>';
   return html;
 }
 function renderWavePanel(r, pids, players){
@@ -4112,9 +4309,9 @@ function renderWavePanel(r, pids, players){
     '<div class="w" style="font-size:clamp(16px,4.4vw,22px)">'+esc(r.left)+'  ⟷  '+esc(r.right)+'</div></div>';
 
   if(r.phase!=='reveal'){
-    const board=pids.slice().sort((a,b)=>golfOf(a)-golfOf(b))
-      .map(pid=>esc(playerNameOf(pid))+' '+golfOf(pid)).join(' · ');
-    html+='<p class="muted" style="text-align:center">⛳ '+board+' — lowest wins</p>';
+    const board=pids.slice().sort((a,b)=>waveOf(b)-waveOf(a))
+      .map(pid=>esc(playerNameOf(pid))+' '+waveOf(pid).toLocaleString()).join(' · ');
+    html+='<p class="muted" style="text-align:center">📡 '+board+'</p>';
   }
   if(r.phase==='clue'){
     if(myIds.includes(r.psychic) && privVisible(r.psychic)){
@@ -4157,20 +4354,22 @@ function renderWavePanel(r, pids, players){
     const marks=[{at:r.target, label:'TARGET', colour:'#d0244b'}];
     Object.entries(r.guesses||{}).forEach(([pid,g])=>marks.push({at:g, label:playerNameOf(pid)}));
     html+='<div class="qcard"><div class="qname">The clue was "'+esc(r.clue||'')+'"</div>'+waveDial(r.left,r.right,marks)+'</div>';
-    html+='<div class="qcard"><div class="qname">This round — target was '+r.target+'</div>';
+    html+='<div class="qcard"><div class="qname">This round — the target was '+r.target+'</div>';
     const rows=Object.entries(r.guesses||{}).map(([pid,g])=>({pid,g,d:Math.abs(g-r.target)})).sort((a,b)=>a.d-b.d);
     rows.forEach((x,i)=>{
-      html+='<div class="timesrow"'+(i===0?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
-        '<span>'+(i===0?'🎯 ':'')+esc(playerNameOf(x.pid))+' guessed '+x.g+'</span>'+
-        '<span>+'+x.d+'</span></div>';
+      const pts=wavePoints(x.d);
+      const tag = x.d===0 ? '🎯 BULLSEYE' : x.d<=2 ? '🔥' : i===0 ? '👏' : '';
+      html+='<div class="timesrow"'+(x.d<=2?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
+        '<span>'+tag+' '+esc(playerNameOf(x.pid))+' · '+x.g+'</span>'+
+        '<span>'+x.d+' off · +'+pts.toLocaleString()+'</span></div>';
     });
     html+='</div>';
-    html+='<div class="qcard"><div class="qname">⛳ Running totals — lowest wins</div>';
-    pids.slice().sort((a,b)=>golfOf(a)-golfOf(b)).forEach((pid,i)=>{
+    html+='<div class="qcard"><div class="qname">📡 Running totals</div>';
+    pids.slice().sort((a,b)=>waveOf(b)-waveOf(a)).forEach((pid,i)=>{
       html+='<div class="timesrow"'+(i===0?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
-        '<span>'+(i===0?'🏆 ':'')+esc(playerNameOf(pid))+'</span><span>'+golfOf(pid)+'</span></div>';
+        '<span>'+(i===0?'🏆 ':'')+esc(playerNameOf(pid))+'</span><span>'+waveOf(pid).toLocaleString()+'</span></div>';
     });
-    html+='<p class="muted" style="margin:6px 0 0">'+esc(psychicName)+' carries the room\u2019s average miss.</p></div>';
+    html+='<p class="muted" style="margin:6px 0 0">'+esc(psychicName)+' earns the room\u2019s average. Max 5,000 a round.</p></div>';
   }
   safeSetHTML($('waveContent'), html);
 }
@@ -4530,8 +4729,8 @@ function renderPlay(){
   $('scoreList').innerHTML=pids.map(pid=>{
     const dead=(r.eliminated||{})[pid];
     const nm='<span class="'+(dead?'deadchip':'')+'">'+esc(players[pid].name)+'</span>'+(dead?' 💀':'')+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
-    const golfMode=(game.round&&game.round.mode==='wavelength');
-    const pts=golfMode ? golfOf(pid) : (game.scores?.[pid]||0);
+    const waveMode=(game.round&&game.round.mode==='wavelength');
+    const pts=waveMode ? waveOf(pid) : (game.scores?.[pid]||0);
     const btns=IS_HOST?`<div class="btns">
         <button onclick="hostScore('${pid}',-1)">-1</button>
         <button onclick="hostScore('${pid}',1)">+1</button>
@@ -4551,6 +4750,7 @@ function renderPlay(){
   /* host controls */
   $('hostControls').style.display=IS_HOST?'block':'none';
   if(IS_HOST){
+    $('skipQBtn').style.display = ['likely','whosaid','laststanding','wavelength'].includes(mode) ? '' : 'none';
     $('voteBtn').style.display = (mode==='word' && r.phase==='play') ? '' : 'none';
     $('revealBtn').style.display = (mode==='word' && r.playStyle!=='elimination' && !r.revealed && r.phase==='play') ? '' : 'none';
     if($('hostRulesWrap').style.display!=='none') syncSettingsUI();
@@ -4756,3 +4956,4 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) hideAllS
 </script>
 </body>
 </html>
+ 
