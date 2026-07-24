@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -176,7 +175,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v33</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v35</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -1241,9 +1240,23 @@ else { $('setupWarning').style.display='block'; }
 
 /* ================= SESSION ================= */
 const LS='imposterOnline';
-function saveSession(s){ localStorage.setItem(LS, JSON.stringify(s)); }
-function loadSession(){ try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ return null; } }
-function clearSession(){ localStorage.removeItem(LS); }
+/* sessionStorage is per-tab and survives a refresh — localStorage is shared by
+   every tab in the browser, so testing with several tabs made them all restore
+   as whoever joined last. We write both: the tab's own copy wins, and the
+   localStorage copy still restores the game if the tab was closed entirely. */
+function saveSession(s){
+  const j=JSON.stringify(s);
+  try{ sessionStorage.setItem(LS, j); }catch(e){}
+  try{ localStorage.setItem(LS, j); }catch(e){}
+}
+function loadSession(){
+  try{ const t=sessionStorage.getItem(LS); if(t) return JSON.parse(t); }catch(e){}
+  try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ return null; }
+}
+function clearSession(){
+  try{ sessionStorage.removeItem(LS); }catch(e){}
+  try{ localStorage.removeItem(LS); }catch(e){}
+}
 
 let CODE=null, PID=null, MYNAME=null, IS_HOST=false;
 let game=null;        // live snapshot of games/{CODE}
@@ -2556,14 +2569,14 @@ async function applyLikelyScores(r, pids){
 
 /* ---------- Last One Standing ---------- */
 function tierFor(qNum){ return qNum<=2 ? 'broad' : qNum<=4 ? 'medium' : 'narrow'; }
-function lsAlive(r, pids){ return pids.filter(p=>!(r.out||{})[p]); }
-/* One player leads and secretly picks an answer. Everyone else answers blind —
-   match the leader and you're out. A new leader takes over each question. */
+/* One player leads and secretly picks an answer. Everyone else answers blind:
+   dodge the leader and you score, match them and you get nothing. Nobody is
+   ever knocked out, so every player is in every question. */
 function dealLastStandingRound(pids, st, num){
   return {mode:'laststanding', num, phase:'lead', qNum:1,
           question:pickQ(LAST_STANDING.broad,'ls-broad'),
           leader:pids[(num-1)%pids.length],
-          leadAnswer:null, answers:{}, out:{}, scored:false, timerEndsAt:0};
+          leadAnswer:null, answers:{}, scored:false, timerEndsAt:0};
 }
 async function submitLeadAnswer(pid){
   const r=game?.round; if(!r || r.phase!=='lead') return;
@@ -2586,19 +2599,21 @@ async function submitLastAnswer(pid){
   await db.ref('games/'+CODE+'/round/answers/'+pid).set(txt.slice(0,40));
   haptic('medium');
 }
-/* Reveal: anyone who matched the leader goes out. Leader scores per catch. */
+/* Reveal: dodge the leader for +1, be the ONLY dodger for +3.
+   Leader takes +1 for every person they catch. */
 async function resolveLastStanding(r, pids){
-  const alive=lsAlive(r, pids);
-  const caught=[];
-  alive.forEach(p=>{
-    if(p===r.leader) return;
+  const others=pids.filter(p=>p!==r.leader);
+  const caught=[], dodged=[];
+  others.forEach(p=>{
     const a=(r.answers||{})[p];
-    if(a && fuzzyMatch(a, r.leadAnswer)) caught.push(p);
+    if(a && fuzzyMatch(a, r.leadAnswer)) caught.push(p); else dodged.push(p);
   });
-  for(const p of caught) await db.ref('games/'+CODE+'/round/out/'+p).set(true);
-  if(caught.length) await db.ref('games/'+CODE+'/scores/'+r.leader)
-    .set((game.scores?.[r.leader]||0)+caught.length);
-  await db.ref('games/'+CODE+'/round').update({caught, phase:'reveal'});
+  const solo=dodged.length===1 && others.length>1;
+  const updates={};
+  dodged.forEach(p=>{ updates[p]=(game.scores?.[p]||0)+(solo?3:1); });
+  if(caught.length) updates[r.leader]=(game.scores?.[r.leader]||0)+caught.length;
+  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
+  await db.ref('games/'+CODE+'/round').update({caught, dodged, solo, phase:'reveal'});
 }
 /* Host can bin a question nobody likes and pull a fresh one */
 async function hostBackToLobby(){
@@ -2634,15 +2649,13 @@ async function hostSkipQuestion(){
 async function hostNextLastQuestion(){
   if(!IS_HOST || !game?.round) return;
   const r=game.round, pids=Object.keys(game.players||{});
-  const alive=lsAlive(r, pids);
-  if(alive.length<=1) return;
   const qNum=(r.qNum||1)+1;
   const tier=tierFor(qNum);
-  const idx=alive.indexOf(r.leader);
+  const idx=pids.indexOf(r.leader);
   await db.ref('games/'+CODE+'/round').update({
     qNum, question:pickQ(LAST_STANDING[tier],'ls-'+tier),
-    leader:alive[(idx+1)%alive.length],
-    leadAnswer:null, answers:{}, caught:null, phase:'lead'
+    leader:pids[(idx+1)%pids.length],
+    leadAnswer:null, answers:{}, caught:null, dodged:null, solo:null, phase:'lead'
   });
 }
 
@@ -2685,7 +2698,8 @@ async function applyWaveScores(r, pids){
     updates[pid]=waveOf(pid)+pts;
     total+=pts; n++;
   });
-  /* the clue-giver earns the room's average — a clue only one person gets is worth less */
+  /* the clue-giver earns the room's average — equal share, so nobody is
+     disadvantaged by whose turn it happens to be when the game ends */
   if(n) updates[r.psychic]=waveOf(r.psychic)+Math.round(total/n);
   for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/wave/'+pid).set(v);
 }
@@ -2872,16 +2886,9 @@ async function hostAutoAdvance(){
   if(r.mode==='seconds' && r.phase==='play' && (r.turnIdx||0)>=(r.order||[]).length){
     await db.ref('games/'+CODE+'/round/phase').set('vote');
   }
-  if(r.mode==='laststanding'){
-    const alive=lsAlive(r, pids);
-    if(r.phase==='answer'){
-      const others=alive.filter(p=>p!==r.leader);
-      if(others.length && others.every(p=>(r.answers||{})[p])) await resolveLastStanding(r, pids);
-    }
-    if(r.phase==='reveal' && alive.length<=1 && !r.scored){
-      await db.ref('games/'+CODE+'/round/scored').set(true);
-      if(alive[0]) await db.ref('games/'+CODE+'/scores/'+alive[0]).set((game.scores?.[alive[0]]||0)+5);
-    }
+  if(r.mode==='laststanding' && r.phase==='answer'){
+    const others=pids.filter(p=>p!==r.leader);
+    if(others.length && others.every(p=>(r.answers||{})[p])) await resolveLastStanding(r, pids);
     return;
   }
   if(r.mode==='wavelength' && r.phase==='guess' && !r.scored){
@@ -4209,11 +4216,10 @@ function renderWhoSaidPanel(r, pids, players){
 /* ---------- Last One Standing UI ---------- */
 function renderLastStandingPanel(r, pids, players){
   $('lastPanel').style.display='block';
-  const alive=lsAlive(r, pids);
   const myIds=myPlayerIds();
   const shared=myIds.length>1;
-  const others=alive.filter(p=>p!==r.leader);
-  let html='<div class="revealbox"><div class="muted">Question '+(r.qNum||1)+' · '+alive.length+' still in · '+
+  const others=pids.filter(p=>p!==r.leader);
+  let html='<div class="revealbox"><div class="muted">Question '+(r.qNum||1)+' · '+
     esc(playerNameOf(r.leader))+' is leading</div>'+
     '<div class="w" style="font-size:clamp(18px,5vw,26px);line-height:1.3">'+esc(r.question||'')+'</div></div>';
 
@@ -4221,7 +4227,7 @@ function renderLastStandingPanel(r, pids, players){
     if(myIds.includes(r.leader) && privVisible(r.leader)){
       html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+esc(playerNameOf(r.leader))+
         ' — you\u2019re leading</div>'+
-        '<div class="muted">Pick the answer you reckon most of them will say. Anyone who matches you is out.</div>'+
+        '<div class="muted">Pick what you reckon most of them will say. You score +1 for everyone who matches you.</div>'+
         '<textarea id="lslead-'+r.leader+'" rows="1" maxlength="40" placeholder="Your answer..."></textarea>'+
         '<button class="btn primary" style="margin-top:6px" onclick="submitLeadAnswer(\''+r.leader+'\')">Lock It In</button></div>';
     }else if(shared && !privOpenFor && myIds.includes(r.leader)){
@@ -4232,9 +4238,8 @@ function renderLastStandingPanel(r, pids, players){
   }
 
   if(r.phase==='answer'){
-    html+='<div class="turnbanner">Answer without matching '+esc(playerNameOf(r.leader))+'. No peeking.</div>';
+    html+='<div class="turnbanner">Say something '+esc(playerNameOf(r.leader))+' wouldn\u2019t have said.</div>';
     myIds.forEach(pid=>{
-      if(!alive.includes(pid)) return;
       if(pid===r.leader){
         html+='<div class="qcard"><div class="muted">You\u2019ve set the trap. Watch them walk into it.</div></div>';
         return;
@@ -4248,35 +4253,30 @@ function renderLastStandingPanel(r, pids, players){
         '<textarea id="ls-'+pid+'" rows="1" maxlength="40" placeholder="Something they won\u2019t have said..."></textarea>'+
         '<button class="btn primary" style="margin-top:6px" onclick="submitLastAnswer(\''+pid+'\')">Lock It In</button></div>';
     });
-    if(shared && !privOpenFor && myIds.some(p=>alive.includes(p) && p!==r.leader && !(r.answers||{})[p])){
+    if(shared && !privOpenFor && myIds.some(p=>p!==r.leader && !(r.answers||{})[p])){
       html+='<p class="muted" style="text-align:center">Tap your name above to answer.</p>';
     }
     html+='<p class="muted" style="text-align:center">'+Object.keys(r.answers||{}).length+'/'+others.length+' answered.</p>';
   }
 
   if(r.phase==='reveal'){
+    const caught=r.caught||[];
     html+='<div class="revealbox"><div class="muted">'+esc(playerNameOf(r.leader))+' said</div>'+
       '<div class="w">'+esc(r.leadAnswer||'')+'</div></div>';
-    const caught=r.caught||[];
-    others.concat(caught.filter(c=>!others.includes(c))).forEach(pid=>{
+    others.forEach(pid=>{
       const a=(r.answers||{})[pid]||'—';
-      const gone=caught.includes(pid);
-      html+='<div class="timesrow"'+(gone?' style="border-color:#ffb3c6;background:#ffe9ee"':'')+'>'+
-        '<span>'+(gone?'💀 ':'✅ ')+esc(playerNameOf(pid))+'</span><span>'+esc(a)+'</span></div>';
+      const hit=caught.includes(pid);
+      const pts=hit?0:(r.solo?3:1);
+      html+='<div class="timesrow"'+(hit?' style="border-color:#ffb3c6;background:#ffe9ee"':'')+'>'+
+        '<span>'+(hit?'❌ ':(r.solo?'⭐ ':'✅ '))+esc(playerNameOf(pid))+' · '+esc(a)+'</span>'+
+        '<span>'+(pts?'+'+pts:'0')+'</span></div>';
     });
     html+= caught.length
-      ? '<div class="elim-banner">💀 '+caught.map(playerNameOf).map(esc).join(' & ')+' walked straight into it. '+
+      ? '<div class="elim-banner">🪤 '+caught.map(playerNameOf).map(esc).join(' & ')+' walked right into it. '+
         esc(playerNameOf(r.leader))+' +'+caught.length+'</div>'
       : '<div class="elim-banner">😐 Nobody matched. '+esc(playerNameOf(r.leader))+' gets nothing.</div>';
-    const still=lsAlive(r, pids);
-    if(still.length<=1){
-      html+='<div class="revealbox"><div class="muted">Last one standing</div><div class="w">'+
-        esc(playerNameOf(still[0])||'Nobody')+'</div><div class="imps">WINNER · +5</div></div>';
-    }else if(IS_HOST){
-      html+='<button class="btn primary big" style="margin-top:8px" onclick="hostNextLastQuestion()">Next question ▶</button>';
-    }
-    html+='<div class="qcard"><div class="qname">Still in</div><div class="handwrap">'+
-      still.map(p=>'<span class="takenchip">'+esc(playerNameOf(p))+'</span>').join('')+'</div></div>';
+    if(r.solo) html+='<div class="elim-banner">⭐ Only one dodged it — that\u2019s worth +3.</div>';
+    if(IS_HOST) html+='<button class="btn primary big" style="margin-top:8px" onclick="hostNextLastQuestion()">Next question ▶</button>';
   }
   safeSetHTML($('lastContent'), html);
 }
@@ -4369,7 +4369,9 @@ function renderWavePanel(r, pids, players){
       html+='<div class="timesrow"'+(i===0?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
         '<span>'+(i===0?'🏆 ':'')+esc(playerNameOf(pid))+'</span><span>'+waveOf(pid).toLocaleString()+'</span></div>';
     });
-    html+='<p class="muted" style="margin:6px 0 0">'+esc(psychicName)+' earns the room\u2019s average. Max 5,000 a round.</p></div>';
+    const avg=rows.length?Math.round(rows.reduce((t,x)=>t+wavePoints(x.d),0)/rows.length):0;
+    html+='<p class="muted" style="margin:6px 0 0">'+esc(psychicName)+' earns the room average: <b>'+
+      avg.toLocaleString()+'</b>. Max 5,000 a round.</p></div>';
   }
   safeSetHTML($('waveContent'), html);
 }
@@ -4956,4 +4958,3 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) hideAllS
 </script>
 </body>
 </html>
- 
