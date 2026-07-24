@@ -39,12 +39,6 @@
   input.text{width:100%;border:1px solid #e4e0ff;border-radius:12px;padding:14px;font-size:17px;background:#fff;color:#111}
   input.code{text-transform:uppercase;letter-spacing:8px;font-weight:900;text-align:center;font-size:24px}
   .handwrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-  .handcard{appearance:none;border:2px solid #e9e7f7;background:#fff;color:#222;border-radius:12px;
-    padding:9px 11px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;position:relative;max-width:100%}
-  .handcard.on{border-color:transparent;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-  .handcard .num{display:inline-block;background:#fff;color:#5a37ff;border-radius:999px;
-    width:17px;height:17px;line-height:17px;text-align:center;font-size:11px;margin-right:5px}
-  .preview{margin-top:8px;padding:10px;border-radius:12px;background:#f6f4ff;font-size:14px;line-height:1.4}
   .takenchip{display:inline-block;background:#efeaff;color:#5a37ff;border-radius:999px;
     padding:6px 10px;font-weight:800;font-size:12px}
   .takenchip small{opacity:.6;font-weight:700}
@@ -53,6 +47,10 @@
   .wavemark{position:absolute;top:-4px;width:3px;height:52px;transform:translateX(-50%);border-radius:2px}
   .wavemark span{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10px;
     font-weight:900;white-space:nowrap;color:#333}
+  .wavetick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.16);transform:translateX(-50%)}
+  .wavetick b{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);font-size:10px;
+    font-weight:900;color:#888}
+  .wavereadout{text-align:center;font-weight:1000;font-size:28px;color:#5a37ff;margin-top:4px}
   .wavelabels{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#666;margin-top:6px}
   .waveslider{width:100%;margin-top:10px;accent-color:#5a37ff;height:34px}
   .modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
@@ -173,13 +171,18 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v31</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v32</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
 
   <!-- HOME -->
   <section id="scrHome" class="screen show">
+    <div class="panel" id="recoveryBox" style="display:none;border:2px solid #ffc9d6">
+      <h3 style="margin:0 0 6px">⚠️ Couldn't restore your game</h3>
+      <p class="muted" id="recoveryMsg" style="margin:0 0 8px"></p>
+      <button class="btn primary" onclick="hardReset()">Reset the app</button>
+    </div>
     <section class="panel" id="setupWarning" style="display:none">
       <div class="setuperr">⚠️ Firebase isn't configured yet. Open this file and paste your Firebase config where it says PASTE YOUR FIREBASE CONFIG. See the setup guide.</div>
     </section>
@@ -332,10 +335,6 @@
       <p class="muted" style="text-align:center;margin:8px 0 0">Hold your own card to see your word. Let go to hide it. Don't show anyone!</p>
       <div id="wordGuessWrap"></div>
       <div id="rolePanel"></div>
-    </section>
-
-    <section class="panel" id="cardsPanel" style="display:none">
-      <div id="cardsContent"></div>
     </section>
 
     <section class="panel" id="lastPanel" style="display:none">
@@ -1330,26 +1329,49 @@ function attachGame(){
       return;
     }
     IS_HOST = game.host===PID;
-    render();
+    if(IS_HOST) startMafiaBeat(); else stopMafiaBeat();
+    try{ render(); }
+    catch(err){ console.error('render failed', err); showRecovery(err); }
   });
 }
-function detachGame(){ if(gameRef && gameListener){ gameRef.off('value', gameListener); } gameRef=gameListener=null; }
+function detachGame(){ stopMafiaBeat(); if(gameRef && gameListener){ gameRef.off('value', gameListener); } gameRef=gameListener=null; }
 
 /* Rejoin on refresh */
 document.addEventListener('DOMContentLoaded', ()=>{
   $('joinCode').addEventListener('input', e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,''); });
 });
+/* If anything at all goes wrong, land on a screen the player can act on
+   instead of a blank page that survives every refresh. */
+function showRecovery(err){
+  const box=$('recoveryBox');
+  if(box){
+    box.style.display='block';
+    $('recoveryMsg').textContent=(err&&err.message)?String(err.message).slice(0,140):'Something went wrong.';
+  }
+}
+function hardReset(){
+  try{ clearSession(); }catch(e){}
+  try{ detachGame(); }catch(e){}
+  location.href=location.pathname;
+}
+window.addEventListener('error', e=>{ if(!game) showRecovery(e.error||e); });
 window.addEventListener('load', async ()=>{
-  buildSettingsUI();
-  const s=loadSession();
-  if(s && db){
-    const snap=await db.ref('games/'+s.code).get();
-    if(snap.exists() && snap.val().players?.[s.pid]){
-      CODE=s.code; PID=s.pid; MYNAME=s.name;
-      attachGame();
-      return;
+  try{ buildSettingsUI(); }catch(e){ console.error(e); }
+  try{
+    const s=loadSession();
+    if(s && db){
+      const snap=await db.ref('games/'+s.code).get();
+      if(snap.exists() && snap.val().players?.[s.pid]){
+        CODE=s.code; PID=s.pid; MYNAME=s.name;
+        attachGame();
+        return;
+      }
+      clearSession();
     }
-    clearSession();
+  }catch(err){
+    console.error('rejoin failed', err);
+    try{ clearSession(); }catch(e){}
+    showRecovery(err);
   }
   showScreen('scrHome');
 });
@@ -1364,7 +1386,6 @@ const MODES=[
   {v:'mafia',   emoji:'🌙', name:'Mafia',            min:4, blurb:'Town sleeps, mafia kills, town votes. Narrated out loud.'},
   {v:'likely',  emoji:'👀', name:'Most Likely To',   min:3, blurb:'Vote for whoever fits best. Read the room to score.'},
   {v:'whosaid', emoji:'🗣',  name:'Guess Who Said It',min:3, blurb:'Answer anonymously, then match every answer to a person.'},
-  {v:'cards',   emoji:'🃏', name:'Filth Cards',       min:3, blurb:'Fill the blank with the worst card in your hand. Judge picks the winner. Adults only.'},
   {v:'laststanding', emoji:'🪑', name:'Last One Standing', min:3, blurb:'Name something nobody has said yet. Repeat one and you\u2019re out.'},
   {v:'wavelength', emoji:'📡', name:'Wavelength',     min:3, blurb:'One player sees a spot on the dial and gives a clue. Everyone else guesses.'}
 ];
@@ -1527,12 +1548,11 @@ async function hostStartRound(){
     if(gm==='seconds') round=dealSecondsRound(pids, st, num);
     if(pids.length<modeMin(gm)) return toast(MODE_BY[gm].name+' needs at least '+modeMin(gm)+' players');
     if(gm==='mafia') round=dealMafiaRound(pids, st, num);
-    if(gm==='cards')        round=dealCardsRound(pids, st, num);
     if(gm==='laststanding') round=dealLastStandingRound(pids, st, num);
     if(gm==='wavelength')   round=dealWavelengthRound(pids, st, num);
     if(gm==='likely')  round=dealLikelyRound(pids, st, num);
     if(gm==='whosaid') round=dealWhoSaidRound(pids, st, num);
-    secRunning=null; privOpenFor=null; cardSel={}; flushSpeech();
+    secRunning=null; privOpenFor=null; flushSpeech();
     await db.ref('games/'+CODE).update({status:'playing', round});
     haptic('medium');
     return;
@@ -1979,493 +1999,6 @@ const WHO_SAID=[
 ];
 
 
-/* ================= FILTH CARDS (original set) ================= */
-/* _ marks a blank. Two blanks means two cards get played. */
-const CARD_PROMPTS=[
- "I got barred from the wedding for _.",
- "Nothing ruins a first date quite like _.",
- "My therapist has stopped taking notes about _.",
- "The secret ingredient is _.",
- "What finally ended the friendship? _.",
- "I told my boss I was off sick. I was actually _.",
- "_ is the reason I no longer have a group chat.",
- "The nurse asked how it happened. I said _.",
- "What's the last thing you'd want to find in a kebab? _.",
- "My nan walked in on me _.",
- "_ should absolutely be illegal.",
- "The new Netflix documentary is about _.",
- "I'd sell my own kidney for _.",
- "What's ruining Britain? _.",
- "The pub quiz was going fine until _.",
- "I'm not saying it was my fault, but there was _ involved.",
- "You can tell a lot about a person by _.",
- "The Airbnb review simply read: _.",
- "What's the worst thing to shout in a hospital? _.",
- "My CV says 'experienced in _'.",
- "The stag do went downhill after _.",
- "What did I bring back from Magaluf? _.",
- "_ is why we can't have nice things.",
- "The vicar asked us all to reflect on _.",
- "I've been banned from Facebook for _.",
- "What's in the shed? _.",
- "My last words will be _.",
- "The hen party was cancelled because of _.",
- "I don't trust anyone who enjoys _.",
- "The staff toilet has a sign about _.",
- "What's the most British way to die? _.",
- "The police said they'd never seen _ before.",
- "I'm sorry I ruined Christmas with _.",
- "The dating app bio just said _.",
- "What's under my bed? _.",
- "The school newsletter had to address _.",
- "_ is my emotional support activity.",
- "The taxi driver has seen things. Mostly _.",
- "What's the one thing I'd change about myself? _.",
- "The gym membership was cancelled after _.",
- "My mum found out about _ and hasn't spoken since.",
- "The all-inclusive was ruined by _.",
- "What's the smell coming from the flat upstairs? _.",
- "The doctor said the results showed _.",
- "I only agreed to it because of _.",
- "The new office policy bans _.",
- "What did the postman witness? _.",
- "My biggest regret is _.",
- "The zoo has installed extra fencing because of _.",
- "_ is what separates us from the animals.",
- "The council sent a letter about _.",
- "What's the worst thing to bring to a funeral? _.",
- "The bouncer took one look and said _.",
- "The lads' holiday group chat is 90% _.",
- "I've built an entire personality around _.",
- "What's the actual reason the flight was delayed? _.",
- "The vet has questions about _.",
- "_ is a perfectly normal thing to keep in a freezer.",
- "The neighbours have complained about _.",
- "My performance review mentioned _ four times.",
- "What's the strangest thing I've done sober? _.",
- "The bin men refuse to touch _.",
- "I fell in love the moment I saw _.",
- "The hotel manager wants a word about _.",
- "What's my toxic trait? _.",
- "The pub landlord has a photo of me for _.",
- "_ ruined my childhood.",
- "The insurance claim was rejected due to _.",
- "What's the one thing you shouldn't Google? _.",
- "My New Year's resolution is more _.",
- "The wedding speech ended with _.",
- "What did I find in my dad's shed? _.",
- "The dentist doesn't want to talk about _.",
- "_ and a bottle of wine. That's my Friday.",
- "The teacher had to explain _ to the whole class.",
- "What's happening in the car park behind Aldi? _.",
- "I've been carrying _ around in my bag for months.",
- "The tribunal heard evidence of _.",
- "Nobody warned me about _.",
- "The scan showed _.",
- "What's the fastest way to end a party? _.",
- "My browser history is mostly _.",
- "The ambulance crew were very professional about _.",
- "_ is technically a hobby.",
- "The A&E waiting room was full of _.",
- "What does my ex tell people about me? _.",
- "The hen do theme was _.",
- "I've never recovered from _.",
- "The landlord's inspection turned up _.",
- "What's the worst thing to whisper at a job interview? _.",
- "My eulogy will mention _.",
- "The lifeguard blew the whistle at _.",
- "_ is why I don't go to family gatherings.",
- "The school trip was memorable because of _.",
- "What's in the loft? _.",
- "The pub has banned _ after last Tuesday.",
- "I would genuinely fight someone over _.",
- "The parole board wasn't convinced by _.",
- "What's the one thing my partner doesn't know? _.",
- "The camping trip ended with _.",
- "_ has never once solved a problem.",
- "The barber asked what I wanted and I said _.",
- "What's on the CCTV? _.",
- "My most Googled symptom is _.",
- "The soft play centre had to close because of _.",
- "_ is the hill I will die on.",
- "The paramedics asked me to repeat _.",
- "What happened at the works Christmas do? _.",
- "The estate agent described it as _.",
- "I only get out of bed for _.",
- "The customer complaint mentioned _.",
- "What's genuinely wrong with me? _.",
- "The stag was tied to a lamppost with _.",
- "_ then _. In that order.",
- "First _, then _. Classic Tuesday.",
- "My autobiography: _ and _.",
- "The two things I can't live without: _ and _.",
- "I blame _ and _ entirely.",
- "The recipe calls for _ and a generous amount of _.",
- "The court heard about _ and, more disturbingly, _."
-];
-
-const CARD_ANSWERS=[
- "a Greggs sausage roll and zero regrets",
- "aggressive eye contact",
- "my nan's medication",
- "a genuinely upsetting amount of mayonnaise",
- "crying in an Asda car park",
- "an unwashed festival wristband from 2019",
- "the entire cast of Emmerdale",
- "a lukewarm bath and a podcast about murder",
- "getting emotional at a dog advert",
- "sixteen cans and a bad attitude",
- "a wasp in the car",
- "sending a voice note by accident",
- "explaining crypto to a stranger",
- "a badly parked Nissan Micra",
- "the smell of a wet dog",
- "an unsolicited photo of a shed",
- "my dad's opinions about roundabouts",
- "getting stuck in a onesie",
- "a rogue toenail",
- "the noise my knee makes now",
- "a bin bag full of secrets",
- "someone else's chewing gum",
- "screaming into a pillow at 4am",
- "an entire jar of pickled eggs",
- "the way my uncle says 'Wi-Fi'",
- "unexplained bruising",
- "a very confident lie",
- "three energy drinks and no plan",
- "a fully grown man crying at Frozen",
- "the last bus home",
- "a suspicious tupperware",
- "arguing with a parking meter",
- "the entire Wetherspoons menu",
- "a haircut I did myself",
- "someone's forgotten vape",
- "the sound of a Zoom call unmuting",
- "a family-sized trifle, eaten alone",
- "a text I absolutely should not have sent",
- "the dog watching",
- "a small but persistent lie",
- "an unnecessary tattoo of a seagull",
- "the bit of the sofa where the crumbs live",
- "my search history",
- "a hot tub of questionable cleanliness",
- "a lad called Baz",
- "the audacity",
- "a fridge with nothing but condiments",
- "getting cocky on a bouncy castle",
- "an air fryer and a dream",
- "public transport at 3am",
- "a very serious man in Lycra",
- "a mouthful of sand",
- "the last Rolo, taken without asking",
- "an unlicensed bouncy castle",
- "the crushing weight of admin",
- "a nan who swears more than I do",
- "the wrong kind of mushroom",
- "an entire tube of Pringles as a meal",
- "a stranger's wedding I gatecrashed",
- "the noise of someone eating an apple",
- "a sunburn shaped like regret",
- "my ex's new haircut",
- "an argument about gravy",
- "a bathroom with no lock",
- "one shoe",
- "a genuinely disgusting flannel",
- "someone doing a magic trick at you",
- "a printer that has never once worked",
- "the flat's mystery smell",
- "an inflatable flamingo, deflating slowly",
- "a bloke with a metal detector",
- "the exact moment the taxi arrives",
- "a nosebleed at the worst possible time",
- "an all-day breakfast at 11pm",
- "someone's homemade wine",
- "a very hot curry and a big mouth",
- "the wrong bathroom",
- "an alarm going off in someone else's bag",
- "an emotionally unavailable cat",
- "my knee giving out",
- "a stag do in Prague",
- "a mattress on the pavement",
- "someone's uncle at the karaoke",
- "the sound of a fire alarm at 6am",
- "a strong opinion about bin day",
- "a sausage roll left in a coat pocket",
- "the group chat going silent",
- "an unexplained rash",
- "a man singing to himself on the bus",
- "a bag of ice and a lot of hope",
- "the third pint",
- "a fully clothed swim",
- "the wrong sort of silence",
- "a suspiciously warm seat",
- "a mobility scooter driven with confidence",
- "a Facebook post from my mum",
- "the last chicken nugget",
- "an entire relationship built on a lie",
- "a lad doing a backflip he shouldn't",
- "the wrong Nando's order",
- "my nan's opinion on my life choices",
- "a horse, somehow",
- "the smell of a bus in August",
- "a bloke called Deano",
- "someone's leftover chips",
- "an unnecessarily long anecdote",
- "a full English at 2pm",
- "the crunch you weren't expecting",
- "the dog's dinner, eaten by me",
- "a very small bag of very large problems",
- "someone reversing badly",
- "a hen do in Blackpool",
- "an unread group chat with 400 messages",
- "the wrong kind of cheese",
- "an unwashed reusable bottle",
- "eight hours of unbroken silence",
- "a slightly damp £20 note",
- "the bins, on the wrong day",
- "a stranger's baby, handed to me",
- "a pint of milk, drunk in the shop",
- "the last person on the dance floor",
- "an argument I started and immediately lost",
- "someone's toenail clippings",
- "an emotional support kebab",
- "a lad in flip-flops in December",
- "a full-body shudder",
- "the sound of my own voice on a recording",
- "someone else's bathwater",
- "a badly wrapped present",
- "a swan with a grudge",
- "the last train, missed by nine seconds",
- "a shopping trolley in a canal",
- "a man loudly on speakerphone",
- "an ill-advised piercing",
- "an unwashed gym bag",
- "the microwave making that noise",
- "a family portrait nobody consented to",
- "a very confident wrong answer",
- "an unexpected wet patch",
- "the fridge light going out",
- "an enormous pair of pants on a washing line",
- "the noise a Pot Noodle makes",
- "someone else's fitted sheet",
- "a five-hour queue for a toilet",
- "an entire wheel of brie",
- "a Facebook Marketplace disaster",
- "the shed nobody talks about",
- "my mate's homemade tattoo",
- "an unexplained hole in the wall",
- "eight missed calls from an unknown number",
- "a lukewarm sausage roll from a petrol station",
- "the sound of somebody flossing",
- "a paddling pool in November",
- "an unnecessary amount of Lynx Africa",
- "a bloke doing yoga in the park",
- "the last remaining brain cell",
- "a soggy chip on the pavement",
- "a bin fire, literal and emotional",
- "someone's abandoned scooter",
- "a very persistent seagull",
- "a lad shouting 'taxi' at a bus",
- "an unopened bill from March",
- "the sound of a door being kicked",
- "a photo I'll never live down",
- "an inflatable sheep",
- "a bloke with no shirt in a beer garden",
- "the wrong end of a stick",
- "a rogue sneeze",
- "a hen do in matching t-shirts",
- "the smell of a chip pan",
- "one very determined ant",
- "a fully iced Christmas cake in June",
- "a stranger's crocs",
- "my body finally giving up",
- "a pint glass full of prosecco",
- "an ill-fitting wetsuit",
- "the neighbour's security light",
- "an unlicensed haircut",
- "a bag for life, on its ninth life",
- "an unexplained puddle",
- "the wrong sort of confidence",
- "someone eating a boiled egg on a train",
- "a very small dog with a very big attitude",
- "the last of the Christmas Baileys",
- "a suspicious noise from the airing cupboard",
- "an entire family in matching pyjamas",
- "a lad calling his mum from a nightclub",
- "an unfortunate sneeze in a lift",
- "a garden gnome with an attitude problem",
- "the microwave meal I ate raw",
- "somebody's ancient sandwich",
- "an argument about who's driving",
- "the world's worst massage",
- "an overheated laptop on my legs",
- "a paddling pool full of Fanta",
- "a haircut described as 'brave'",
- "an unreasonable number of cushions",
- "somebody's mum on Facebook",
- "the sound of a smoke alarm on low battery",
- "a bag of chips, opened in the rain",
- "one aggressively firm handshake",
- "an unlicensed taxi and a lot of hope",
- "the last three chips at the bottom of the bag",
- "a full bladder and no plan",
- "a stranger who thinks they know me",
- "an unexpected bill for £400",
- "the moment the music stops",
- "somebody's very loud jeans",
- "a boiled sweet from a coat pocket",
- "an emotionally intense episode of Bake Off",
- "a shed full of unexplained wires",
- "a man in a bucket hat, dancing alone",
- "the wrong sort of glitter",
- "a chip shop curry sauce incident",
- "someone's forgotten packed lunch",
- "an unwashed car with 'clean me' written on it",
- "a rogue firework",
- "a stag in a wedding dress at 9am",
- "the crunch of a Werther's Original",
- "an unnecessary second breakfast",
- "somebody else's dentures",
- "a caravan holiday in the rain",
- "a family argument over Monopoly",
- "the neighbour's wind chimes",
- "an unsupervised child with a hosepipe",
- "a bag of prawns left in a hot car",
- "the horrifying realisation",
- "somebody singing along badly on purpose",
- "an inflatable dinghy on a motorway",
- "a suspiciously cheap steak",
- "a lad with a bluetooth speaker",
- "the last chocolate in the tin, which is a coffee one",
- "an unplanned nap at 5pm",
- "a leaking bin bag",
- "somebody's very personal ringtone",
- "a Sunday roast in a heatwave",
- "the cold side of the pillow",
- "an unwelcome hug",
- "the sound of a bin lorry at 6am",
- "a stranger's aggressively strong aftershave",
- "an unopened tub of Quality Street from 2021",
- "a mate who won't stop talking about the gym",
- "an argument at a self-checkout",
- "a suspiciously green swimming pool",
- "somebody's homemade cider",
- "a hen do that peaked at 2pm",
- "the wrong sort of firm",
- "a sausage dog in a cardigan",
- "an entire loaf, eaten as toast",
- "a family-sized bag, single serving",
- "a mate who's just discovered running",
- "the sound of a crisp packet in a quiet room",
- "an unnecessarily detailed dream retelling",
- "a bloke who's 'not really a dancer'",
- "the smell of the school changing rooms",
- "a very wet handshake",
- "an ambitious pair of shorts",
- "someone's unattended pint",
- "a builder's tea, brewed for nine minutes",
- "an unexpected direct debit",
- "the last person to leave the office",
- "an inflatable crocodile lost at sea",
- "a strong opinion about pineapple",
- "a mate who's started saying 'my truth'",
- "the bit of the beach with all the pebbles",
- "an overly familiar cat",
- "a shed door that won't shut",
- "an unfortunate reflection in a shop window",
- "somebody's very brown banana",
- "a pub carpet with stories to tell",
- "the sensation of wet socks",
- "an unrequested magic trick",
- "a lad who brings his own protein shaker",
- "a wheelie bin, mid-collapse",
- "somebody's unrequested opinion on my parking",
- "a warm can of lager found in the boot",
- "the wrong sort of stain",
- "a queue that isn't moving",
- "a bloke asleep on the train, on me",
- "an entire packet of Jaffa Cakes",
- "an unexplained phone call from the school",
- "a stag do that started on Wednesday",
- "the noise a hand dryer makes",
- "somebody's slightly damp handshake",
- "a fully committed bad decision",
- "a bin day I got completely wrong",
- "an unnecessary firework display",
- "a mate who's 'gone vegan, by the way'",
- "the last slice, taken silently",
- "somebody's abandoned rucksack",
- "a haircut visible from space",
- "an ill-timed burp",
- "a lad who claims he can do a backflip",
- "somebody eating soup very loudly",
- "an unexplained sticky patch",
- "a very small bag of very expensive crisps",
- "a hotel corridor at 4am",
- "the man who won't stop talking about his van",
- "a bag of pick 'n' mix, mostly foam",
- "an argument about the thermostat",
- "the wrong sort of moist",
- "a stranger's holiday photos",
- "somebody's unbelievably slow walking",
- "an unopened gym membership",
- "a hen party on the same train as me",
- "the sound of someone else's alarm",
- "a lad in a Hawaiian shirt in Hull",
- "an unrequested back massage",
- "a suspicious number of candles",
- "the final boarding call",
- "somebody's very personal business, loudly",
- "a lukewarm scotch egg",
- "a nan with an iPad at full volume",
- "the last thing I remember",
- "an unwise second curry",
- "a bloke with a laminated spreadsheet",
- "somebody's homemade sloe gin",
- "an unnecessarily long hug",
- "a caravan awning in high wind",
- "the moment you realise it's Monday",
- "a fridge full of condiments and shame",
- "a mate who's just done a marathon and won't shut up",
- "the wrong sort of surprise",
- "somebody's tuna sandwich on a train",
- "an unlicensed hot tub",
- "a pigeon that isn't scared of anyone",
- "somebody else's toothbrush",
- "an entire tub of Ben & Jerry's, standing up",
- "a wasps' nest in the shed",
- "the noise a printer makes at 8am",
- "an unfortunate camera angle",
- "a bloke doing a wheelie past a school",
- "the last chip, gone cold",
- "an unexpected tan line",
- "somebody's unwashed hoodie",
- "a stag do wearing morph suits in Nando's",
- "the exact wrong thing to say",
- "an inflatable unicorn in a puddle",
- "a bin with a mind of its own",
- "somebody who claps when the plane lands",
- "an unsolicited photo of somebody's dinner",
- "the sensation of standing on Lego",
- "a lad who's started a podcast",
- "an unwashed water bottle from July",
- "the smell of a pub carpet at 11am",
- "somebody's very loud crisps",
- "a nan who won't stop talking about the war",
- "an unfortunately timed sneeze",
- "a lad who does his own brakes",
- "the last three sips of a warm pint",
- "somebody's abandoned bike, minus the wheels",
- "an unnecessarily aggressive spin class",
- "a bag of ice in a heatwave",
- "the wrong sort of quiet",
- "a chip shop at closing time",
- "somebody's opinion on my driving",
- "an unopened air fryer, still in the box",
- "a bloke shouting at a football on the telly",
- "the final straw"
-];
-
 /* ================= LAST ONE STANDING ================= */
 /* Grouped by how many answers exist. Rounds get narrower as players drop. */
 const LAST_STANDING={
@@ -2535,7 +2068,84 @@ const SPECTRUMS=[
  ["Not a real sport","Definitely a sport"],["Bad breakup text","Acceptable breakup text"],
  ["Should be illegal","Should be compulsory"],["Rubbish crisp flavour","Elite crisp flavour"],
  ["Terrible dance move","Actually smooth"],["Bad haircut","Great haircut"],
- ["Not a proper meal","Definitely a proper meal"]
+ ["Not a proper meal","Definitely a proper meal"],
+ ["Bad hobby","Impressive hobby"],["Waste of a weekend","Perfect weekend"],
+ ["Rubbish night out","Best night out"],["Terrible advice from a parent","Wise words"],
+ ["Bad karaoke choice","Guaranteed banger"],["Awful nickname","Great nickname"],
+ ["Rubbish at parties","Life of the party"],["Bad pizza topping","Elite pizza topping"],
+ ["Not worth the calories","Absolutely worth it"],["Bad time to call someone","Fine time to call"],
+ ["Terrible band name","Great band name"],["Bad excuse for being late","Fair enough"],
+ ["Not a real word","Definitely a word"],["Awkward silence","Comfortable silence"],
+ ["Bad thing to say at a funeral","Perfectly fine to say"],["Cheap date","Expensive date"],
+ ["Rubbish at DIY","Actually handy"],["Bad thing to find in a fridge","Great find"],
+ ["Terrible film to watch with parents","Totally fine with parents"],
+ ["Not a real emergency","Genuine emergency"],["Bad sandwich filling","Perfect filling"],
+ ["Rubbish weather for a walk","Ideal walking weather"],["Bad reason to quit a job","Completely valid"],
+ ["Not worth the argument","Worth dying on"],["Terrible dog name","Great dog name"],
+ ["Bad thing to wear to work","Perfectly professional"],["Cheap wine","Posh wine"],
+ ["Bad time to eat a curry","Perfect curry time"],["Rubbish present for a child","Best present ever"],
+ ["Not a real qualification","Genuinely impressive"],["Bad thing to say to a bouncer","Gets you in"],
+ ["Terrible seat on a plane","Best seat"],["Bad way to start a text","Great opener"],
+ ["Not scary at all","Absolutely terrifying"],["Bad thing to keep in a shed","Totally normal"],
+ ["Rubbish tattoo placement","Great placement"],["Bad thing to say on a first date","Charming"],
+ ["Not worth insuring","Definitely insure it"],["Terrible cereal","Elite cereal"],
+ ["Bad way to spend a lottery win","Sensible use"],["Awful podcast topic","Would listen"],
+ ["Bad time to text","Perfectly reasonable"],["Rubbish holiday souvenir","Great souvenir"],
+ ["Not a real chore","Proper hard work"],["Bad thing to be famous for","Great claim to fame"],
+ ["Terrible bar snack","Perfect bar snack"],["Bad reason to be late for work","Totally fair"],
+ ["Rubbish superpower to have at work","Incredibly useful at work"],
+ ["Not a proper sandwich","Definitely a sandwich"],["Bad wedding song","Perfect wedding song"],
+ ["Terrible thing to be good at","Genuinely useful skill"],
+ ["Bad way to be woken up","Lovely way to wake up"],["Rubbish thing to collect","Great collection"],
+ ["Not worth learning","Worth mastering"],["Bad thing to say to your boss","Career move"],
+ ["Terrible pub name","Great pub name"],["Bad gift from a partner","Thoughtful gift"],
+ ["Rubbish thing to do on a Sunday","Perfect Sunday"],["Not a real job","Proper career"],
+ ["Bad thing to microwave","Fine to microwave"],["Awful ringtone","Acceptable ringtone"],
+ ["Bad time to go to the gym","Ideal gym time"],["Rubbish flavour of ice cream","Best flavour"],
+ ["Bad conversation starter","Great conversation starter"],
+ ["Terrible thing to be scared of","Completely reasonable fear"],
+ ["Bad thing to name a boat","Great boat name"],["Rubbish film sequel","Better than the original"],
+ ["Not worth the hangover","Absolutely worth it"],["Bad thing to bring camping","Essential kit"],
+ ["Terrible birthday activity","Perfect birthday"],["Bad way to break bad news","Handled well"],
+ ["Rubbish at cooking","Proper chef"],["Not a real illness","Genuinely rough"],
+ ["Bad thing to say in a lift","Perfectly normal"],["Awful choice of pet name","Brilliant pet name"],
+ ["Bad way to spend a day off","Perfect day off"],["Rubbish thing to be proud of","Fair enough to brag"],
+ ["Terrible advice for a teenager","Solid life advice"],
+ ["Bad thing to have in your bag","Sensible to carry"],["Cheap seats","Best seats in the house"],
+ ["Bad thing to say to a nurse","Perfectly reasonable"],["Rubbish DIY job","Proper craftsmanship"],
+ ["Not worth the queue","Queue all day for it"],["Terrible school subject","Actually useful"],
+ ["Bad thing to do at a wedding","Completely acceptable"],
+ ["Rubbish thing to argue about","Worth the argument"],["Bad way to end a night","Perfect ending"],
+ ["Not a real hobby","Serious pursuit"],["Terrible thing to say to a stranger","Friendly opener"],
+ ["Bad thing to eat before bed","Perfect bedtime snack"],
+ ["Rubbish present for a mate","Great present"],["Bad reason to move house","Very good reason"],
+ ["Terrible use of a bank holiday","Perfect bank holiday"],
+ ["Bad thing to be known for at school","Legendary status"],
+ ["Rubbish way to get to work","Ideal commute"],["Not worth the effort","Effort well spent"],
+ ["Bad thing to say to a taxi driver","Gets you a good chat"],
+ ["Terrible thing to put on toast","Delicious on toast"],
+ ["Bad way to spend Christmas Day","Perfect Christmas"],
+ ["Rubbish thing to be competitive about","Worth winning"],
+ ["Bad excuse to leave a party","Completely believable"],
+ ["Not a proper breakfast","Full breakfast"],["Terrible place to live","Dream location"],
+ ["Bad thing to ask on a first date","Great question"],
+ ["Rubbish way to keep fit","Genuinely good exercise"],
+ ["Bad time to have a serious conversation","Right moment"],
+ ["Terrible thing to lose","Wouldn't miss it"],["Bad thing to be late for","No harm done"],
+ ["Rubbish holiday activity","Highlight of the trip"],
+ ["Not worth telling people","Great story"],["Bad thing to keep in the car","Sensible to keep"],
+ ["Terrible way to meet a partner","Lovely how they met"],
+ ["Bad thing to spend savings on","Sound investment"],
+ ["Rubbish way to spend an evening","Perfect evening"],
+ ["Bad thing to say to your nan","She'd love that"],["Terrible sandwich shop","Best in town"],
+ ["Bad thing to admit at a job interview","Shows character"],
+ ["Rubbish way to travel","Best way to travel"],["Not a real tradition","Sacred tradition"],
+ ["Bad thing to do on public transport","Perfectly fine"],
+ ["Terrible use of an air fryer","Air fryer perfection"],
+ ["Bad thing to text your ex","Reasonable message"],
+ ["Rubbish thing to be an expert in","Genuinely handy expertise"],
+ ["Bad way to spend a lunch break","Ideal lunch break"],
+ ["Terrible thing to shout in public","Fair to shout"]
 ];
 
 /* Question banks cycle fully before repeating */
@@ -2844,49 +2454,6 @@ async function applyLikelyScores(r, pids){
 
 /* ═══════════════ CARDS / LAST ONE STANDING / WAVELENGTH ═══════════════ */
 
-/* ---------- Cards ---------- */
-function dealCardsRound(pids, st, num){
-  const judge=pids[(num-1)%pids.length];              /* judge rotates every round */
-  const prompt=pickQ(CARD_PROMPTS,'cards');
-  const blanks=(prompt.match(/_/g)||[]).length;
-  const deck=shuffle(CARD_ANSWERS.slice());
-  const hands={};
-  pids.forEach(p=>{ if(p!==judge) hands[p]=deck.splice(0,8); });
-  return {mode:'cards', num, phase:'play', judge, prompt, blanks,
-          hands, plays:{}, scored:false, timerEndsAt:0};
-}
-function fillPrompt(prompt, cards){
-  let i=0;
-  return prompt.replace(/_/g, ()=> '<b>'+esc((cards||[])[i++]||'_____')+'</b>');
-}
-let cardSel={};   /* local: which cards this player has tapped */
-function tapCard(pid, idx){
-  const r=game?.round; if(!r || r.phase!=='play') return;
-  cardSel[pid]=cardSel[pid]||[];
-  const at=cardSel[pid].indexOf(idx);
-  if(at>=0) cardSel[pid].splice(at,1);
-  else if(cardSel[pid].length<r.blanks) cardSel[pid].push(idx);
-  haptic('light');
-  render();
-}
-async function playCards(pid){
-  const r=game?.round; if(!r || r.phase!=='play') return;
-  const sel=cardSel[pid]||[];
-  if(sel.length!==r.blanks) return toast('Pick '+r.blanks+' card'+(r.blanks>1?'s':''));
-  const cards=sel.map(i=>(r.hands||{})[pid][i]);
-  cardSel[pid]=[]; privOpenFor=null;
-  await db.ref('games/'+CODE+'/round/plays/'+pid).set(cards);
-  haptic('medium');
-}
-async function judgePick(winnerPid){
-  const r=game?.round; if(!r || r.phase!=='judge' || r.scored) return;
-  await db.ref('games/'+CODE+'/round/scored').set(true);
-  await db.ref('games/'+CODE+'/round/winner').set(winnerPid);
-  await db.ref('games/'+CODE+'/scores/'+winnerPid).set((game.scores?.[winnerPid]||0)+1);
-  await db.ref('games/'+CODE+'/round/phase').set('reveal');
-  haptic('heavy');
-}
-
 /* ---------- Last One Standing ---------- */
 function tierFor(qNum){ return qNum<=2 ? 'broad' : qNum<=4 ? 'medium' : 'narrow'; }
 function dealLastStandingRound(pids, st, num){
@@ -2945,20 +2512,21 @@ async function submitGuess(pid){
   await db.ref('games/'+CODE+'/round/guesses/'+pid).set(parseInt(sl.value,10));
   haptic('medium');
 }
-function wavePoints(diff){
-  return diff<=4 ? 4 : diff<=10 ? 3 : diff<=18 ? 2 : diff<=28 ? 1 : 0;
-}
+/* Golf: your score is how far off you were, and it stacks up round after
+   round. Lowest total wins. Kept in its own tally so it can't scramble the
+   points-based scoreboard the other games use. */
+function golfOf(pid){ return (game && game.golf && game.golf[pid]) || 0; }
 async function applyWaveScores(r, pids){
   const updates={};
-  const bump=(pid,d)=>{ if(d) updates[pid]=(updates[pid]??(game.scores?.[pid]||0))+d; };
   let total=0, n=0;
   Object.entries(r.guesses||{}).forEach(([pid,g])=>{
-    const pts=wavePoints(Math.abs(g-r.target));
-    bump(pid,pts); total+=pts; n++;
+    const miss=Math.abs(g-r.target);
+    updates[pid]=golfOf(pid)+miss;
+    total+=miss; n++;
   });
-  /* the psychic scores on how well the room read their clue */
-  if(n) bump(r.psychic, Math.round(total/n));
-  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/scores/'+pid).set(v);
+  /* the psychic carries the room's average miss — a vague clue costs them */
+  if(n) updates[r.psychic]=golfOf(r.psychic)+Math.round(total/n);
+  for(const [pid,v] of Object.entries(updates)) await db.ref('games/'+CODE+'/golf/'+pid).set(v);
 }
 
 /* ═══════════════ Imposter word guess (+3) ═══════════════ */
@@ -3142,16 +2710,6 @@ async function hostAutoAdvance(){
   }
   if(r.mode==='seconds' && r.phase==='play' && (r.turnIdx||0)>=(r.order||[]).length){
     await db.ref('games/'+CODE+'/round/phase').set('vote');
-  }
-  if(r.mode==='cards'){
-    if(r.phase==='play'){
-      const players=pids.filter(p=>p!==r.judge);
-      if(players.every(p=>(r.plays||{})[p])){
-        await db.ref('games/'+CODE+'/round/playOrder').set(shuffle(players.slice()));
-        await db.ref('games/'+CODE+'/round/phase').set('judge');
-      }
-    }
-    return;
   }
   if(r.mode==='laststanding' && r.phase==='answer'){
     const alive=lsAlive(r, pids);
@@ -3915,6 +3473,7 @@ async function mafiaShield(pid){
   privOpenFor=null;
   await db.ref(base+'shield').set({by:pid, target:sel.value});
   await db.ref(base+'nightStep').set('shielded');
+  await db.ref(base+'stepAt').set(Date.now());
   haptic('medium');
 }
 async function mafiaKill(pid){
@@ -3922,6 +3481,7 @@ async function mafiaKill(pid){
   privOpenFor=null;
   await db.ref('games/'+CODE+'/round/pendingKill').set(sel.value);
   await db.ref('games/'+CODE+'/round/nightStep').set('resolve');
+  await db.ref('games/'+CODE+'/round/stepAt').set(Date.now());
   haptic('heavy');
 }
 async function mafiaInvestigate(pid){
@@ -4016,84 +3576,109 @@ async function checkMafiaWin(r, pids, justDead){
 }
 
 /* ── Host night/day driver ── */
-const NIGHT_GAP=4000;    // pause before the first role wakes
+const NIGHT_GAP=4000;    // pause before the next role wakes
 const NIGHT_PAUSE=6000;  // longer pause after someone acts, so eyes can close
-/* Host presses this to begin the night — nothing is spoken until they do */
+
+/* The night used to run on chained setTimeouts inside the host's page, so a
+   refresh (or the phone locking) destroyed them and the game parked forever.
+   Every timed step now records WHEN it started in the database, and a
+   heartbeat re-checks it — so any device can pick the night back up. */
+async function setNightStep(step){
+  await db.ref('games/'+CODE+'/round').update({nightStep:step, stepAt:Date.now()});
+}
 async function hostSleepNow(){
   if(!IS_HOST || !game?.round) return;
-  const base='games/'+CODE+'/round/';
-  narrate('Everyone, go to sleep.');      /* speak FIRST — iOS blocks speech after an await */
-  await db.ref(base+'shield').remove();   /* fresh shield choice every single night */
-  await db.ref(base+'nightStep').set('sleeping');
-  const pids=Object.keys(game.players||{});
-  setTimeout(async ()=>{
-    const r=game.round; if(!r || r.phase!=='night') return;
-    const shielder=activeShielder(r,pids);
-    if(shielder){
-      narrate(r.angelPid===shielder?'Angel, wake up.':'Medic, wake up.');
-      await db.ref(base+'nightStep').set('medic');
-    }else{
-      narrate('Mafia, wake up.');
-      await db.ref(base+'nightStep').set('mafia');
-    }
-  }, NIGHT_GAP);
+  unlockSpeech();
+  const busy = speaking || speechQueue.length>0 || pendingNarration>0;
+  if(busy) toast('Waiting for the narrator to finish...');
+  await setNightStep('pending');
 }
+function nightShielderLine(r, pids){
+  const shielder=activeShielder(r, pids);
+  if(!shielder) return null;
+  return (r.angelPid===shielder) ? 'Angel' : 'Medic';
+}
+/* Runs on every update AND on a 2s heartbeat, so a stalled night self-heals */
 async function mafiaHostTick(){
   if(!IS_HOST || !game?.round || game.round.mode!=='mafia') return;
   const r=game.round, pids=Object.keys(game.players||{});
-  const base='games/'+CODE+'/round/';
   if(r.phase!=='night') return;
-  /* medic has shielded — long pause, send them back to sleep, then wake the mafia */
-  if(r.nightStep==='shielded'){
-    await db.ref(base+'nightStep').set('shieldwait');
-    setTimeout(async ()=>{
-      const fresh=game.round; if(!fresh || fresh.phase!=='night') return;
-      narrate((fresh.angelPid&&fresh.shield&&fresh.shield.by===fresh.angelPid?'Angel':'Medic')+', go back to sleep.');
-      setTimeout(async ()=>{
-        const f2=game.round; if(!f2 || f2.phase!=='night') return;
-        narrate('Mafia, wake up.');
-        await db.ref(base+'nightStep').set('mafia');
-      }, NIGHT_GAP);
-    }, NIGHT_PAUSE);
+  const age=Date.now()-(r.stepAt||0);
+  const step=r.nightStep;
+
+  if(step==='pending'){
+    const busy = speaking || speechQueue.length>0 || pendingNarration>0;
+    /* wait for any live role announcement, but never longer than 20s */
+    if(busy && age<20000) return;
+    narrate('Everyone, go to sleep.');
+    await db.ref('games/'+CODE+'/round/shield').remove();  /* fresh shield every night */
+    await setNightStep('sleeping');
+    return;
   }
-  /* mafia has killed — resolve, wait, then wake the town */
-  if(r.nightStep==='resolve'){
-    await db.ref(base+'nightStep').set('resolving');
+  if(step==='sleeping' && age>=NIGHT_GAP){
+    const who=nightShielderLine(r, pids);
+    if(who){ narrate(who+', wake up.'); await setNightStep('medic'); }
+    else   { narrate('Mafia, wake up.'); await setNightStep('mafia'); }
+    return;
+  }
+  if(step==='shielded' && age>=NIGHT_PAUSE){
+    const who=(r.angelPid && r.shield && r.shield.by===r.angelPid) ? 'Angel' : 'Medic';
+    narrate(who+', go back to sleep.');
+    await setNightStep('shieldwait');
+    return;
+  }
+  if(step==='shieldwait' && age>=NIGHT_GAP){
+    narrate('Mafia, wake up.');
+    await setNightStep('mafia');
+    return;
+  }
+  if(step==='resolve'){
+    await setNightStep('resolving');
     const target=r.pendingKill;
     const shielded=r.shield && r.shield.target===target;
     if(shielded){
       const log=(r.log||[]).slice();
       log.push({reason:'shielded', dead:[], day:r.dayNum||1, target});
-      await db.ref(base+'log').set(log);
+      await db.ref('games/'+CODE+'/round/log').set(log);
     }else{
       await applyDeaths(r, [target], 'mafia-kill');
     }
-    await db.ref(base+'pendingKill').remove();
-    setTimeout(async ()=>{
-      const fresh=game.round;
-      if(fresh && fresh.phase==='night'){
-        narrate('Mafia, go back to sleep.');
-        setTimeout(async ()=>{
-          const f2=game.round;
-          if(f2 && f2.phase==='night'){
-            narrate('Everyone, wake up.');
-            await db.ref(base+'nightStep').set('done');
-            await db.ref(base+'phase').set('day');
-          }
-        }, NIGHT_GAP);
-      }
-    }, NIGHT_PAUSE);
+    await db.ref('games/'+CODE+'/round/pendingKill').remove();
+    if(game.round && game.round.phase==='night') await setNightStep('killed');
+    return;
+  }
+  if(step==='killed' && age>=NIGHT_PAUSE){
+    narrate('Mafia, go back to sleep.');
+    await setNightStep('wakewait');
+    return;
+  }
+  if(step==='wakewait' && age>=NIGHT_GAP){
+    narrate('Everyone, wake up.');
+    await db.ref('games/'+CODE+'/round').update({nightStep:'done', phase:'day', stepAt:Date.now()});
+    return;
+  }
+  /* Belt and braces: a role step that somehow never got actioned for two
+     minutes gets nudged on rather than freezing the game. */
+  if((step==='medic'||step==='mafia') && age>120000){
+    if(step==='medic'){ narrate('Medic, go back to sleep.'); await setNightStep('shieldwait'); }
+    else { await db.ref('games/'+CODE+'/round/pendingKill').remove(); await setNightStep('killed'); }
   }
 }
-function testNarration(){
-  lastNarration='';
-  const vs=(window.speechSynthesis && window.speechSynthesis.getVoices())||[];
-  narrate('Narrator test. Everyone, go to sleep.');
-  setTimeout(()=>{
-    if(!window.speechSynthesis) toast('This browser has no speech support.');
-    else if(!vs.length) toast('No voices loaded yet — tap Test again.');
-    else toast('Voice: '+(pickedVoice?pickedVoice.name:vs[0].name)+' · change it in Rules if you like.');
-  }, 700);
+/* Heartbeat — this is what makes a refresh survivable */
+let mafiaBeat=null;
+function startMafiaBeat(){
+  if(mafiaBeat) return;
+  mafiaBeat=setInterval(()=>{ try{ mafiaHostTick(); }catch(e){} }, 2000);
+}
+function stopMafiaBeat(){ if(mafiaBeat){ clearInterval(mafiaBeat); mafiaBeat=null; } }
+
+async function hostForceMorning(){
+  if(!IS_HOST || !game?.round) return;
+  if(!confirm('Skip the rest of the night and wake everyone up?')) return;
+  flushSpeech();
+  await db.ref('games/'+CODE+'/round/pendingKill').remove();
+  narrate('Everyone, wake up.');
+  await db.ref('games/'+CODE+'/round').update({nightStep:'done', phase:'day', stepAt:Date.now()});
 }
 async function hostMafiaVote(){
   if(!IS_HOST) return;
@@ -4127,6 +3712,7 @@ async function goToNightOrShowdown(r, pids){
   }
   await db.ref(base+'phase').set('night');
   await db.ref(base+'nightStep').set('start');
+  await db.ref(base+'stepAt').set(Date.now());
 }
 async function resolveMafiaVote(){
   const r=game.round, pids=Object.keys(game.players||{});
@@ -4464,74 +4050,6 @@ function renderWhoSaidPanel(r, pids, players){
 }
 
 
-/* ---------- Cards UI ---------- */
-function renderCardsPanel(r, pids, players){
-  $('cardsPanel').style.display='block';
-  const myIds=myPlayerIds();
-  const shared=myIds.length>1;
-  const judgeName=playerNameOf(r.judge);
-  let html='<div class="revealbox"><div class="muted">'+esc(judgeName)+' is judging</div>'+
-    '<div class="w" style="font-size:clamp(17px,4.6vw,24px);line-height:1.35">'+fillPrompt(r.prompt,null)+'</div></div>';
-
-  if(r.phase==='play'){
-    const waiting=pids.filter(p=>p!==r.judge && !(r.plays||{})[p]);
-    myIds.forEach(pid=>{
-      if(pid===r.judge){
-        html+='<div class="qcard"><div class="qname">You\u2019re judging</div>'+
-          '<div class="muted">Sit tight. Best answer wins the point.</div></div>';
-        return;
-      }
-      if((r.plays||{})[pid]){
-        html+='<div class="answerrow"><div class="an">'+esc(playerNameOf(pid))+'</div><div class="at">Card played ✅</div></div>';
-        return;
-      }
-      if(!privVisible(pid)) return;
-      const hand=(r.hands||{})[pid]||[];
-      const sel=cardSel[pid]||[];
-      html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+esc(playerNameOf(pid))+
-        ' — pick '+r.blanks+' card'+(r.blanks>1?'s':'')+'</div><div class="handwrap">';
-      hand.forEach((c,i)=>{
-        const on=sel.indexOf(i);
-        html+='<button class="handcard'+(on>=0?' on':'')+'" onclick="tapCard(\''+pid+'\','+i+')">'+
-          (r.blanks>1&&on>=0?'<span class="num">'+(on+1)+'</span>':'')+esc(c)+'</button>';
-      });
-      html+='</div>';
-      if(sel.length===r.blanks){
-        html+='<div class="preview">'+fillPrompt(r.prompt, sel.map(i=>hand[i]))+'</div>'+
-          '<button class="btn primary" style="margin-top:6px" onclick="playCards(\''+pid+'\')">Play it</button>';
-      }
-      html+='</div>';
-    });
-    if(shared && !privOpenFor && myIds.some(p=>p!==r.judge && !(r.plays||{})[p])){
-      html+='<p class="muted" style="text-align:center">Tap your name above to see your cards.</p>';
-    }
-    html+='<p class="muted" style="text-align:center">Waiting on '+waiting.length+' player'+(waiting.length===1?'':'s')+'.</p>';
-  }
-
-  if(r.phase==='judge'){
-    const iJudge=myIds.includes(r.judge);
-    html+='<p class="muted" style="text-align:center">'+(iJudge?'Your call. Pick the best one.':esc(judgeName)+' is deciding...')+'</p>';
-    (r.playOrder||Object.keys(r.plays||{})).forEach(pid=>{
-      const cards=(r.plays||{})[pid]; if(!cards) return;
-      html+='<div class="qcard"><div class="qtext">'+fillPrompt(r.prompt, cards)+'</div>'+
-        (iJudge?'<button class="btn primary" style="margin-top:6px" onclick="judgePick(\''+pid+'\')">Pick this one</button>':'')+
-        '</div>';
-    });
-  }
-
-  if(r.phase==='reveal'){
-    html+='<div class="revealbox"><div class="muted">Winner</div>'+
-      '<div class="w">'+esc(playerNameOf(r.winner))+' +1</div></div>';
-    (r.playOrder||Object.keys(r.plays||{})).forEach(pid=>{
-      const cards=(r.plays||{})[pid]; if(!cards) return;
-      html+='<div class="qcard"'+(pid===r.winner?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
-        '<div class="qtext">'+fillPrompt(r.prompt, cards)+'</div>'+
-        '<div class="qname" style="color:#5a37ff">'+(pid===r.winner?'🏆 ':'')+esc(playerNameOf(pid))+'</div></div>';
-    });
-  }
-  safeSetHTML($('cardsContent'), html);
-}
-
 /* ---------- Last One Standing UI ---------- */
 function renderLastStandingPanel(r, pids, players){
   $('lastPanel').style.display='block';
@@ -4577,11 +4095,12 @@ function renderLastStandingPanel(r, pids, players){
 /* ---------- Wavelength UI ---------- */
 function waveDial(leftLabel, rightLabel, marks){
   let html='<div class="wavebar">';
+  [0,25,50,75,100].forEach(t=>{ html+='<div class="wavetick" style="left:'+t+'%"><b>'+t+'</b></div>'; });
   (marks||[]).forEach(m=>{
     html+='<div class="wavemark" style="left:'+m.at+'%;background:'+(m.colour||'#5a37ff')+'">'+
-      '<span>'+esc(m.label)+'</span></div>';
+      '<span>'+esc(m.label)+(m.at!==undefined?' '+m.at:'')+'</span></div>';
   });
-  html+='</div><div class="wavelabels"><span>'+esc(leftLabel)+'</span><span>'+esc(rightLabel)+'</span></div>';
+  html+='</div><div class="wavelabels"><span>0 · '+esc(leftLabel)+'</span><span>'+esc(rightLabel)+' · 100</span></div>';
   return html;
 }
 function renderWavePanel(r, pids, players){
@@ -4592,6 +4111,11 @@ function renderWavePanel(r, pids, players){
   let html='<div class="revealbox"><div class="muted">'+esc(psychicName)+' is reading the dial</div>'+
     '<div class="w" style="font-size:clamp(16px,4.4vw,22px)">'+esc(r.left)+'  ⟷  '+esc(r.right)+'</div></div>';
 
+  if(r.phase!=='reveal'){
+    const board=pids.slice().sort((a,b)=>golfOf(a)-golfOf(b))
+      .map(pid=>esc(playerNameOf(pid))+' '+golfOf(pid)).join(' · ');
+    html+='<p class="muted" style="text-align:center">⛳ '+board+' — lowest wins</p>';
+  }
   if(r.phase==='clue'){
     if(myIds.includes(r.psychic) && privVisible(r.psychic)){
       html+='<div class="qcard"><div class="qname" style="color:#d0244b">'+esc(psychicName)+' — only you can see this</div>'+
@@ -4619,8 +4143,10 @@ function renderWavePanel(r, pids, players){
       }
       if(!privVisible(pid)) return;
       html+='<div class="qcard"><div class="qname" style="color:#5a37ff">'+esc(playerNameOf(pid))+'</div>'+
-        '<input type="range" class="waveslider" id="wsl-'+pid+'" min="0" max="100" value="50">'+
-        '<div class="wavelabels"><span>'+esc(r.left)+'</span><span>'+esc(r.right)+'</span></div>'+
+        '<div class="wavereadout" id="wout-'+pid+'">50</div>'+
+        '<input type="range" class="waveslider" id="wsl-'+pid+'" min="0" max="100" value="50" '+
+        'oninput="document.getElementById(\'wout-'+pid+'\').textContent=this.value">'+
+        '<div class="wavelabels"><span>0 · '+esc(r.left)+'</span><span>'+esc(r.right)+' · 100</span></div>'+
         '<button class="btn primary" style="margin-top:6px" onclick="submitGuess(\''+pid+'\')">Lock In Guess</button></div>';
     });
     const guessers=pids.filter(p=>p!==r.psychic);
@@ -4631,13 +4157,20 @@ function renderWavePanel(r, pids, players){
     const marks=[{at:r.target, label:'TARGET', colour:'#d0244b'}];
     Object.entries(r.guesses||{}).forEach(([pid,g])=>marks.push({at:g, label:playerNameOf(pid)}));
     html+='<div class="qcard"><div class="qname">The clue was "'+esc(r.clue||'')+'"</div>'+waveDial(r.left,r.right,marks)+'</div>';
+    html+='<div class="qcard"><div class="qname">This round — target was '+r.target+'</div>';
     const rows=Object.entries(r.guesses||{}).map(([pid,g])=>({pid,g,d:Math.abs(g-r.target)})).sort((a,b)=>a.d-b.d);
     rows.forEach((x,i)=>{
-      const pts=wavePoints(x.d);
       html+='<div class="timesrow"'+(i===0?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
-        '<span>'+(i===0?'🎯 ':'')+esc(playerNameOf(x.pid))+'</span><span>'+x.d+' away · +'+pts+'</span></div>';
+        '<span>'+(i===0?'🎯 ':'')+esc(playerNameOf(x.pid))+' guessed '+x.g+'</span>'+
+        '<span>+'+x.d+'</span></div>';
     });
-    html+='<p class="muted" style="text-align:center">'+esc(psychicName)+' scores the room\u2019s average.</p>';
+    html+='</div>';
+    html+='<div class="qcard"><div class="qname">⛳ Running totals — lowest wins</div>';
+    pids.slice().sort((a,b)=>golfOf(a)-golfOf(b)).forEach((pid,i)=>{
+      html+='<div class="timesrow"'+(i===0?' style="border-color:#7b5cff;background:#efeaff"':'')+'>'+
+        '<span>'+(i===0?'🏆 ':'')+esc(playerNameOf(pid))+'</span><span>'+golfOf(pid)+'</span></div>';
+    });
+    html+='<p class="muted" style="margin:6px 0 0">'+esc(psychicName)+' carries the room\u2019s average miss.</p></div>';
   }
   safeSetHTML($('waveContent'), html);
 }
@@ -4806,6 +4339,9 @@ function renderMafiaPanel(r, pids, players){
   if(IS_HOST && r.phase==='night' && (r.nightStep==='start'||r.nightStep==='pending')){
     html+='<button class="btn primary big" style="margin-top:8px" onclick="hostSleepNow()">🌙 Everyone Go To Sleep</button>';
   }
+  if(IS_HOST && r.phase==='night' && !['start','pending'].includes(r.nightStep)){
+    html+='<button class="btn ghost" style="margin-top:8px" onclick="hostForceMorning()">⏭ Skip to morning (if stuck)</button>';
+  }
   if(r.nightStep==='showdown' && r.phase!=='reveal'){
     html+='<div class="elim-banner">⚖️ FINAL THREE — no more nights. This is decided by the vote.</div>';
   }
@@ -4876,7 +4412,7 @@ function renderPlay(){
                             : (mode==='artist' ? (r.category||'') : '');
 
   /* hide everything mode-specific, then show what this mode needs */
-  ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel','mafiaPanel','likelyPanel','whoSaidPanel','cardsPanel','lastPanel','wavePanel'].forEach(id=>$(id).style.display='none');
+  ['oddPanel','artistPanel','secondsPanel','votePanel','resultPanel','qPanel','revealPanel','mafiaPanel','likelyPanel','whoSaidPanel','lastPanel','wavePanel'].forEach(id=>$(id).style.display='none');
   $('whoPanel').style.display='none';
   /* panel visibility handled after we know what's open */
 
@@ -4884,7 +4420,7 @@ function renderPlay(){
   renderWhoBoxes(r, players);
   const showIds=visibleIds();
   const wrapPanel=document.querySelector('#secretCards').parentElement;
-  if(!['odd','likely','whosaid','cards','laststanding','wavelength'].includes(mode)) buildSecretCards(showIds, r, players);
+  if(!['odd','likely','whosaid','laststanding','wavelength'].includes(mode)) buildSecretCards(showIds, r, players);
   /* Word Imposter (classic): imposters can gamble a word guess for +3 */
   if(mode==='word' && r.impMode!=='undercover' && r.guessOn!==false){
     let gh='';
@@ -4903,19 +4439,18 @@ function renderPlay(){
   }else{
     $('wordGuessWrap').innerHTML='';
   }
-  const noCards=['odd','likely','whosaid','cards','laststanding','wavelength'].includes(mode);
+  const noCards=['odd','likely','whosaid','laststanding','wavelength'].includes(mode);
   wrapPanel.style.display = (!noCards && (showIds.length || myIds.length<2)) ? 'block' : 'none';
   if(mode==='odd') renderOddPanel(r, pids, players);
   if(mode==='artist') renderArtistPanel(r, pids, players);
   if(mode==='seconds') renderSecondsPanel();
   if(mode==='mafia'){ renderMafiaPanel(r, pids, players); if(IS_HOST) mafiaHostTick(); }
-  if(mode==='cards') renderCardsPanel(r, pids, players);
   if(mode==='laststanding') renderLastStandingPanel(r, pids, players);
   if(mode==='wavelength') renderWavePanel(r, pids, players);
   if(mode==='likely') renderLikelyPanel(r, pids, players);
   if(mode==='whosaid') renderWhoSaidPanel(r, pids, players);
   if(r.phase==='vote') renderVotePanel(r, pids, players);
-  if(r.phase==='reveal' && !['word','mafia','likely','whosaid','cards','laststanding','wavelength'].includes(mode)) renderResultPanel(r, pids, players);
+  if(r.phase==='reveal' && !['word','mafia','likely','whosaid','laststanding','wavelength'].includes(mode)) renderResultPanel(r, pids, players);
   /* role actions live under the cards; hidden once the vote starts */
   if(r.roles && r.phase!=='vote' && r.phase!=='reveal'){
     safeSetHTML($('rolePanel'), rolePanelHTML(r, pids));
@@ -4995,7 +4530,8 @@ function renderPlay(){
   $('scoreList').innerHTML=pids.map(pid=>{
     const dead=(r.eliminated||{})[pid];
     const nm='<span class="'+(dead?'deadchip':'')+'">'+esc(players[pid].name)+'</span>'+(dead?' 💀':'')+(pid===game.host?' 👑':'')+(pid===PID?' (you)':'');
-    const pts=game.scores?.[pid]||0;
+    const golfMode=(game.round&&game.round.mode==='wavelength');
+    const pts=golfMode ? golfOf(pid) : (game.scores?.[pid]||0);
     const btns=IS_HOST?`<div class="btns">
         <button onclick="hostScore('${pid}',-1)">-1</button>
         <button onclick="hostScore('${pid}',1)">+1</button>
