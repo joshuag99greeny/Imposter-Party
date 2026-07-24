@@ -175,7 +175,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v35</span></div></div>
+  <div class="brand"><div class="logo"></div><div class="title">🎉 Imposter Party Online <span style="font-size:11px;opacity:.5;font-weight:700">v36</span></div></div>
   <div id="hdrRight"></div>
 </header>
 <main>
@@ -3665,10 +3665,15 @@ async function undertakerRevive(pid){
   if(r.reviveUsed) return;
   privOpenFor=null;
   await db.ref('games/'+CODE+'/round/reviveUsed').set(true);
-  await db.ref('games/'+CODE+'/round/eliminated/'+sel.value).remove();
-  if(r.angelPid===sel.value) await db.ref('games/'+CODE+'/round/angelPid').remove();
+  const back=[sel.value];
+  const mate=loverOf(r, sel.value);
+  if(mate && (r.eliminated||{})[mate]) back.push(mate);   /* they went together, they come back together */
+  for(const b of back){
+    await db.ref('games/'+CODE+'/round/eliminated/'+b).remove();
+    if(r.angelPid===b) await db.ref('games/'+CODE+'/round/angelPid').remove();
+  }
   const log=(r.log||[]).slice();
-  log.push({reason:'revive', dead:[sel.value], day:r.dayNum||1});
+  log.push({reason:'revive', dead:back, day:r.dayNum||1});
   await db.ref('games/'+CODE+'/round/log').set(log);
   haptic('heavy');
 }
@@ -3677,13 +3682,31 @@ async function sheriffShoot(pid){
   const r=game.round;
   if(r.sheriffUsed) return;
   const hit=sel.value===r.mafiaPid;
+  const victim=hit?sel.value:pid;
   await db.ref('games/'+CODE+'/round/sheriffUsed').set(true);
   await db.ref('games/'+CODE+'/round/sheriffShot').set({by:pid, target:sel.value, hit});
-  await applyDeaths(r, [hit?sel.value:pid], hit?'sheriff-hit':'sheriff-miss');
+  if(isShielded(r, victim)){
+    const log=(r.log||[]).slice();
+    log.push({reason:'shielded', dead:[], day:r.dayNum||1, target:victim});
+    await db.ref('games/'+CODE+'/round/log').set(log);
+  }else{
+    await applyDeaths(r, [victim], hit?'sheriff-hit':'sheriff-miss');
+  }
   haptic('heavy');
 }
 
 /* ── Deaths, lovers, hunter, angel ── */
+/* Lovers share anything life-or-death: shield one and the other is covered too.
+   Information (Detective) and influence (Mayor) deliberately stay personal. */
+function loverOf(r, pid){
+  const lv=r.lovers||[];
+  return lv.includes(pid) ? lv.find(x=>x!==pid) : null;
+}
+function isShielded(r, target){
+  if(!r.shield || !target) return false;
+  if(r.shield.target===target) return true;
+  return loverOf(r, target)===r.shield.target;
+}
 async function applyDeaths(r, victims, reason){
   const pids=Object.keys(game.players||{});
   const base='games/'+CODE+'/round/';
@@ -3794,7 +3817,7 @@ async function mafiaHostTick(){
   if(step==='resolve'){
     await setNightStep('resolving');
     const target=r.pendingKill;
-    const shielded=r.shield && r.shield.target===target;
+    const shielded=isShielded(r, target);
     if(shielded){
       const log=(r.log||[]).slice();
       log.push({reason:'shielded', dead:[], day:r.dayNum||1, target});
@@ -4878,7 +4901,7 @@ function secretFor(pid, r){
     if(rk) bits.push(MAFIA_ROLES[rk].emoji+' '+MAFIA_ROLES[rk].name+': '+MAFIA_ROLES[rk].desc);
     if((r.lovers||[]).includes(pid)){
       const other=r.lovers.find(x=>x!==pid);
-      bits.push('💕 Lover with '+playerNameOf(other)+' — if either dies, you both die.');
+      bits.push('💕 Lover with '+playerNameOf(other)+' — you live and die together. Shield one, both are safe.');
     }
     return pid===r.mafiaPid
       ? {word:'MAFIA', sub:(bits.length?bits.join(' · ')+' · ':'')+'Kill one player each night. Don\u2019t get caught.', imp:true}
